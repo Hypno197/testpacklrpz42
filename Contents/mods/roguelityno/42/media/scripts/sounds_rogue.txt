@@ -1,0 +1,196 @@
+module RogueSound
+{
+    sound rogue_shop_open_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_open_1,
+    }
+    sound rogue_shop_open_2
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_open_2,
+    }
+    sound rogue_shop_buy_ok_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_buy_ok_1,
+    }
+    sound rogue_shop_buy_ok_2
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_buy_ok_2,
+    }
+    sound rogue_shop_buy_fail_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_buy_fail_1,
+    }
+    sound rogue_shop_buy_fail_2
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_buy_fail_2,
+    }
+    sound rogue_build_open_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_build_open_1,
+    }
+    sound rogue_build_buy_ok_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_build_buy_ok_1,
+    }
+    sound rogue_build_buy_fail_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_build_buy_fail_1,
+    }
+    sound rogue_round_prep_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_round_prep_1,
+    }
+    sound rogue_round_prep_2
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_round_prep_2,
+    }
+    sound rogue_round_start_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_round_start_1,
+    }
+    sound rogue_round_start_2
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_round_start_2,
+    }
+    sound rogue_round_start_3
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_round_start_3,
+    }
+    sound rogue_round_clear_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_round_clear_1,
+    }
+    sound rogue_round_overtime_soon_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_round_overtime_soon_1,
+    }
+    sound rogue_round_overtime_1
+    {
+        category = UI,
+        is3D = false,
+        volume = 0.5,
+        clip = rogue_round_overtime_1,
+    }
+    sound rogue_round_overtime_announce_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_round_overtime_announce_1,
+    }
+    sound rogue_shop_open_medical_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_open_medical_1,
+    }
+    sound rogue_shop_buy_ok_medical_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_buy_ok_medical_1,
+    }
+    sound rogue_shop_open_weapons_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_open_weapons_1,
+    }
+    sound rogue_shop_buy_ok_weapons_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_buy_ok_weapons_1,
+    }
+    sound rogue_shop_open_food_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_open_food_1,
+    }
+    sound rogue_shop_buy_ok_food_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_buy_ok_food_1,
+    }
+    sound rogue_shop_open_drugs_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_open_drugs_1,
+    }
+    sound rogue_shop_buy_ok_drugs_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_buy_ok_drugs_1,
+    }
+    sound rogue_shop_open_perks_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_open_perks_1,
+    }
+    sound rogue_shop_buy_ok_perks_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_buy_ok_perks_1,
+    }
+    sound rogue_shop_open_firearms_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_open_firearms_1,
+    }
+    sound rogue_shop_buy_ok_firearms_1
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_shop_buy_ok_firearms_1,
+    }
+    sound FullRestoreSerumSound
+    {
+        category = UI,
+        is3D = false,
+        clip = FullRestoreSerumSound,
+    }
+    sound BogdanoDrinkBurp
+    {
+        category = UI,
+        is3D = false,
+        clip = BogdanoDrinkBurp,
+    }
+}

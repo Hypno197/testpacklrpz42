@@ -1,0 +1,1 @@
+-- Registries for roguelityno (loaded before scripts/lua)

@@ -1,0 +1,3 @@
+Tooltip_IT = {
+Tooltip_Rogue.FullRestoreSerum = "Farmaco avanzato residuo di sperimentazioni militari.\nSi dice curi anche la Knox. Si dice anche che sarebbe meglio tenersela piuttosto che iniettarselo. Si usa col tasto destro."
+}

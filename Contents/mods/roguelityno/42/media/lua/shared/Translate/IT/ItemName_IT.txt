@@ -1,0 +1,3 @@
+ItemName_IT = {
+    ItemName_Rogue.FullRestoreSerum = "Siero Rigenerante Sperimentale"
+}

@@ -1,0 +1,11 @@
+module Rogue
+{
+    item FullRestoreSerum
+    {
+        ItemType = base:normal,
+        DisplayCategory = FirstAid,
+        Weight = 0.2,
+        Icon = FullRestoreSerum,
+        Tooltip = Tooltip_Rogue.FullRestoreSerum,
+    }
+}
