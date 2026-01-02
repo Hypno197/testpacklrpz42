@@ -200,7 +200,11 @@ function Client.getRewardLabel(choice)
     local entry = choice and (choice.entry or choice) or {}
     local rewardType = tostring(entry.type or "item")
     if rewardType == "currency" then
-        return string.format("Currency +%s", tostring(entry.amount or entry.qty or 0))
+        local name = T("UI_rogue_reward_currency")
+        if name == "UI_rogue_reward_currency" then
+            name = "Currency"
+        end
+        return string.format("%s +%s", name, tostring(entry.amount or entry.qty or 0))
     elseif rewardType == "item" or rewardType == "armor" or rewardType == "drug" or rewardType == "heal" then
         local name = Client.getItemDisplayName(entry.id) or tostring(entry.id or "Item")
         local qty = tonumber(entry.qty or entry.amount or 1) or 1
@@ -212,8 +216,26 @@ function Client.getRewardLabel(choice)
         local perkId = entry.skill or entry.id
         local label = Client.getPerkLabel(perkId) or tostring(perkId or "Skill")
         return string.format("%s +%d", label, tonumber(entry.levels or 1) or 1)
+    elseif rewardType == "skills" then
+        local list = entry.skills
+        if type(list) == "table" and #list > 0 then
+            local parts = {}
+            for i = 1, #list do
+                local s = list[i]
+                local perkId = s and (s.skill or s.id) or nil
+                local levels = tonumber(s and s.levels or 0) or 0
+                if perkId and levels > 0 then
+                    local label = Client.getPerkLabel(perkId) or tostring(perkId or "Skill")
+                    parts[#parts + 1] = string.format("%s +%d", label, levels)
+                end
+            end
+            if #parts > 0 then
+                return table.concat(parts, ", ")
+            end
+        end
+        return "Skills"
     elseif rewardType == "xpBoost" then
-        local perkId = entry.skill or entry.perk or entry.id
+        local perkId = entry.skill or entry.id
         local label = Client.getPerkLabel(perkId) or tostring(perkId or "Skill")
         local mult = tonumber(entry.amount or entry.mult or 0) or 0
         local rounds = tonumber(entry.durationRounds or 0) or 0
@@ -221,13 +243,12 @@ function Client.getRewardLabel(choice)
             return string.format("%s XP x%.2f (%dr)", label, mult, rounds)
         end
         return string.format("%s XP x%.2f", label, mult)
-    elseif rewardType == "blessing" or rewardType == "trait" then
-        local perkId = entry.id
-        local label = Client.getPerkLabel(perkId)
-        if label and label ~= tostring(perkId) then
-            return label
-        end
-        return tostring(perkId or "Blessing")
+    elseif rewardType == "trait" then
+        local traitId = entry.id
+        local label = Client.getTraitLabel(traitId)
+        return label or tostring(traitId or "Trait")
+    elseif rewardType == "blessing" then
+        return tostring(entry.id or "Blessing")
     end
     return tostring(entry.id or rewardType)
 end
@@ -277,8 +298,15 @@ function Client.getRewardIcon(choice)
     if entry.iconItem and entry.iconItem ~= "" then
         return Client.getItemIconTexture(entry.iconItem)
     end
-    if rewardType == "skill" or rewardType == "xpBoost" then
-        local perkId = entry.skill or entry.perk or entry.id
+    if rewardType == "skill" or rewardType == "skills" or rewardType == "xpBoost" then
+        local perkId = entry.skill or entry.id
+        if rewardType == "skills" then
+            local list = entry.skills
+            if type(list) == "table" and #list > 0 then
+                local s = list[1]
+                perkId = s and (s.skill or s.id) or perkId
+            end
+        end
         local path = Client.getSkillIconPath(perkId)
         if path and path ~= "" then
             local tex = getTexture(path)
@@ -323,7 +351,7 @@ function Client.openRewardPanel(args)
     Client._rewardRoundId = args.roundId
     Client._rewardRunId = args.runId
 
-    local w, h = 720, 260
+    local w, h = 720, 310
     local x = (getCore():getScreenWidth() / 2) - (w / 2)
     local y = (getCore():getScreenHeight() / 2) - (h / 2)
     local panel = ISPanel:new(x, y, w, h)
@@ -331,12 +359,37 @@ function Client.openRewardPanel(args)
     panel:instantiate()
     panel:addToUIManager()
     panel:setAlwaysOnTop(true)
-    panel.backgroundColor = Client.getUIColor("UI_COLOR_BG", { r = 0, g = 0, b = 0, a = 0.85 })
+    panel.backgroundColor = { r = 0, g = 0, b = 0, a = 0 }
     panel.borderColor = { r = 0, g = 0, b = 0, a = 0 }
 
-    local title = ISLabel:new(12 + Client.UI_PAD_X, 8 + Client.UI_PAD_Y, 20, T("UI_rogue_reward_title"), 1, 1, 1, 1, Client.getUIFont("medium"), true)
-    title:initialise()
-    panel:addChild(title)
+    local tm = getTextManager()
+    local textColor = Client.getUIColor("UI_COLOR_TEXT", { r = 0.95, g = 0.83, b = 0.15, a = 1 })
+    local function measureText(font, text)
+        if tm and tm.MeasureStringX then
+            return tm:MeasureStringX(font, text)
+        end
+        return 0
+    end
+    local function addCenteredShadowText(parent, centerX, y, h, text, font, mainColor, shadowColor)
+        local width = measureText(font, text)
+        local x = centerX - (width / 2)
+        if width <= 0 then
+            x = centerX - 40
+        end
+        return Client.addShadowLabel(parent, x, y, h, text, font, mainColor, shadowColor, 1, 1)
+    end
+
+    local titleText = T("UI_rogue_reward_title")
+    addCenteredShadowText(
+        panel,
+        w / 2,
+        8 + Client.UI_PAD_Y,
+        20,
+        titleText,
+        Client.getUIFont("large"),
+        textColor,
+        { r = 0, g = 0, b = 0, a = 1 }
+    )
 
     local padding = 12
     local slotY = 44
@@ -349,33 +402,57 @@ function Client.openRewardPanel(args)
         local slot = ISPanel:new(slotX, slotY, slotW, slotH)
         slot:initialise()
         slot:instantiate()
-        slot.backgroundColor = { r = 0, g = 0, b = 0, a = 0.4 }
+        slot.backgroundColor = { r = 0, g = 0, b = 0, a = 0 }
         slot.borderColor = { r = 0, g = 0, b = 0, a = 0 }
         panel:addChild(slot)
         local texPath = Rogue.Config and Rogue.Config.REWARD_PANEL_TEX and Rogue.Config.REWARD_PANEL_TEX[rarity] or nil
         Client.addPanelBackground(slot, texPath, 0.95)
 
-        local label = ISLabel:new(10, 8, 18, string.upper(rarity), 1, 1, 1, 1, Client.getUIFont("small"), true)
-        label:initialise()
-        slot:addChild(label)
+        local shadowColor = { r = 0, g = 0, b = 0, a = 1 }
+        if rarity == "epic" or rarity == "legendary" then
+            shadowColor = { r = 0.85, g = 0.1, b = 0.1, a = 1 }
+        end
+        addCenteredShadowText(
+            slot,
+            slotW / 2,
+            28,
+            18,
+            string.upper(rarity),
+            Client.getUIFont("small"),
+            textColor,
+            shadowColor
+        )
 
         local text = Client.getRewardLabel(choice)
-        local label = ISLabel:new(10, 32, 18, text, 1, 1, 1, 1, Client.getUIFont("small"), true)
-        label:initialise()
-        slot:addChild(label)
-
         local icon = Client.getRewardIcon(choice)
         if icon then
-            local img = ISImage:new(10, 58, 48, 48, icon)
+            local img = ISImage:new((slotW - 64) / 2, 52, 64, 64, icon)
             img:initialise()
             slot:addChild(img)
         end
+        addCenteredShadowText(
+            slot,
+            slotW / 2,
+            124,
+            18,
+            text,
+            Client.getUIFont("medium"),
+            textColor,
+            shadowColor
+        )
 
         local short = Client.getRewardDesc(choice)
         if short and short ~= "" then
-            local desc = ISLabel:new(10, 110, 18, short, 1, 1, 1, 1, Client.getUIFont("small"), true)
-            desc:initialise()
-            slot:addChild(desc)
+            addCenteredShadowText(
+                slot,
+                slotW / 2,
+                146,
+                18,
+                short,
+                Client.getUIFont("small"),
+                textColor,
+                shadowColor
+            )
         end
 
         local function pick()
@@ -390,6 +467,14 @@ function Client.openRewardPanel(args)
         end
         local btn = ISButton:new(10, slotH - 40, slotW - 20, 28, T("UI_rogue_reward_pick"), slot, pick)
         btn:initialise()
+        btn.backgroundColor = { r = 0, g = 0, b = 0, a = 0 }
+        btn.borderColor = { r = 0, g = 0, b = 0, a = 0 }
+        if btn.setDisplayBackground then
+            pcall(btn.setDisplayBackground, btn, false)
+        end
+        if btn.setDisplayBorder then
+            pcall(btn.setDisplayBorder, btn, false)
+        end
         slot:addChild(btn)
     end
 
@@ -1253,6 +1338,31 @@ function Client.getPerkLabel(perkId)
     return tostring(perkId)
 end
 
+function Client.getIconTag(iconPath)
+    if not iconPath or iconPath == "" then return nil end
+    return "<IMAGE:" .. tostring(iconPath) .. ">"
+end
+
+function Client.getTraitIconTag(traitId)
+    local path = Client.getTraitIconPath(traitId)
+    if path and getTexture(path) then
+        return Client.getIconTag(path)
+    end
+    return nil
+end
+
+function Client.getSkillIconTag(skillId)
+    local path = Client.getSkillIconPath(skillId)
+    if path and getTexture(path) then
+        return Client.getIconTag(path)
+    end
+    return nil
+end
+
+function Client.getItemIconTag(itemId)
+    return nil
+end
+
 function Client.buildTooltip(build)
     if not build then return nil end
     local parts = {}
@@ -1262,39 +1372,54 @@ function Client.buildTooltip(build)
     if build.traits and #build.traits > 0 then
         local list = {}
         for i = 1, #build.traits do
-            local label = Client.getTraitLabel(build.traits[i])
-            if label and label ~= "" then
-                table.insert(list, label)
+            local icon = Client.getTraitIconTag(build.traits[i])
+            if icon and icon ~= "" then
+                table.insert(list, icon)
+            else
+                local label = Client.getTraitLabel(build.traits[i])
+                if label and label ~= "" then
+                    table.insert(list, label)
+                end
             end
         end
         if #list > 0 then
-            table.insert(parts, T("UI_rogue_build_traits") .. ": " .. table.concat(list, ", "))
+            table.insert(parts, T("UI_rogue_build_traits") .. ": " .. table.concat(list, " "))
         end
     end
     if build.skills then
         local list = {}
         for perkId, level in pairs(build.skills) do
-            local label = Client.getPerkLabel(perkId)
-            if label and level then
-                table.insert(list, string.format("%s +%d", label, tonumber(level) or 0))
+            local icon = Client.getSkillIconTag(perkId)
+            if icon and level then
+                table.insert(list, string.format("%s +%d", icon, tonumber(level) or 0))
+            else
+                local label = Client.getPerkLabel(perkId)
+                if label and level then
+                    table.insert(list, string.format("%s +%d", label, tonumber(level) or 0))
+                end
             end
         end
         if #list > 0 then
             table.sort(list)
-            table.insert(parts, T("UI_rogue_build_skills") .. ": " .. table.concat(list, ", "))
+            table.insert(parts, T("UI_rogue_build_skills") .. ": " .. table.concat(list, " "))
         end
     end
     if build.xpBoosts then
         local list = {}
         for perkId, level in pairs(build.xpBoosts) do
-            local label = Client.getPerkLabel(perkId)
-            if label and level then
-                table.insert(list, string.format("%s +%d%%", label, tonumber(level) or 0))
+            local icon = Client.getSkillIconTag(perkId)
+            if icon and level then
+                table.insert(list, string.format("%s +%d%%", icon, tonumber(level) or 0))
+            else
+                local label = Client.getPerkLabel(perkId)
+                if label and level then
+                    table.insert(list, string.format("%s +%d%%", label, tonumber(level) or 0))
+                end
             end
         end
         if #list > 0 then
             table.sort(list)
-            table.insert(parts, T("UI_rogue_build_xp_boosts") .. ": " .. table.concat(list, ", "))
+            table.insert(parts, T("UI_rogue_build_xp_boosts") .. ": " .. table.concat(list, " "))
         end
     end
     if build.loadout and #build.loadout > 0 then
@@ -1314,7 +1439,7 @@ function Client.buildTooltip(build)
             end
         end
         if #list > 0 then
-            table.insert(parts, T("UI_rogue_build_loadout") .. ": " .. table.concat(list, ", "))
+            table.insert(parts, T("UI_rogue_build_loadout") .. ": " .. table.concat(list, " "))
         end
     end
     return #parts > 0 and table.concat(parts, "\n") or nil
@@ -1818,7 +1943,8 @@ function Client.openBuildShopPanel(player)
         end
         local priceText = string.format("%.2f", tonumber(price) or 0)
         local buttonText = " " .. priceText
-        local btn = ISButton:new(w - pad - buttonW - 72, rowY - 2, buttonW, buttonH, buttonText, panel, onBuy)
+        local btnY = rowY + 18
+        local btn = ISButton:new(w - pad - buttonW - 72, btnY, buttonW, buttonH, buttonText, panel, onBuy)
         btn:initialise()
         if buildTip then
             btn.tooltip = buildTip

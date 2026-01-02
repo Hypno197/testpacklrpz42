@@ -199,13 +199,31 @@ local function pickWeightedRarity(weights, rule)
     return "common"
 end
 
-local function pickRewardFromPool(rarity, rule, usedKeys)
+local function isRewardAllowedForPlayer(entry, player)
+    if not entry then return false end
+    local buildOnly = entry.buildOnly
+    if not buildOnly then return true end
+    local md = player and player.getModData and player:getModData() or nil
+    local buildId = md and md.RogueBuildId or nil
+    if type(buildOnly) == "string" then
+        return buildId == buildOnly
+    end
+    if type(buildOnly) == "table" then
+        for i = 1, #buildOnly do
+            if buildOnly[i] == buildId then
+                return true end
+        end
+    end
+    return false
+end
+
+local function pickRewardFromPool(rarity, rule, usedKeys, player)
     local pool = Config.REWARD_POOLS and Config.REWARD_POOLS[rarity] or {}
     if not pool or #pool == 0 then return nil end
     local filtered = {}
     for i = 1, #pool do
         local entry = pool[i]
-        if entry and isTypeAllowed(entry.type, rule) then
+        if entry and isTypeAllowed(entry.type, rule) and isRewardAllowedForPlayer(entry, player) then
             local key = tostring(entry.type) .. ":" .. tostring(entry.id or entry.skill or entry.amount or entry.qty or entry.levels or i)
             if not usedKeys or not usedKeys[key] then
                 filtered[#filtered + 1] = entry
@@ -230,6 +248,73 @@ local function resolvePerk(perkId)
         if ok and perk then return perk end
     end
     return nil
+end
+
+local function resolveTrait(traitId)
+    if not traitId then return nil end
+    if not CharacterTrait or not ResourceLocation or not CharacterTrait.get then
+        return nil
+    end
+    local id = tostring(traitId)
+    local ok, trait = pcall(function() return CharacterTrait.get(ResourceLocation.of(id)) end)
+    if ok and trait then return trait end
+    local baseId = id:find("^base:") and id or ("base:" .. id)
+    ok, trait = pcall(function() return CharacterTrait.get(ResourceLocation.of(baseId)) end)
+    if ok and trait then return trait end
+    return nil
+end
+
+local function getTraitCollection(player)
+    if not player then return nil end
+    if player.getCharacterTraits then
+        local ok, traits = pcall(player.getCharacterTraits, player)
+        if ok and traits then return traits end
+    end
+    if player.getTraits then
+        local ok, traits = pcall(player.getTraits, player)
+        if ok and traits then return traits end
+    end
+    return nil
+end
+
+local function hasTrait(player, trait)
+    if not player or not trait then return false end
+    local traits = getTraitCollection(player)
+    if traits and traits.get then
+        local ok, res = pcall(traits.get, traits, trait)
+        if ok then return res == true end
+    end
+    if player.hasTrait then
+        local ok, res = pcall(player.hasTrait, player, trait)
+        if ok then return res == true end
+    end
+    return false
+end
+
+local function addTrait(player, trait)
+    local traits = getTraitCollection(player)
+    if traits and traits.add then
+        pcall(traits.add, traits, trait)
+    end
+    if player and player.modifyTraitXPBoost then
+        pcall(player.modifyTraitXPBoost, player, trait, false)
+    end
+end
+
+local function removeTrait(player, trait)
+    local traits = getTraitCollection(player)
+    if traits and traits.remove then
+        pcall(traits.remove, traits, trait)
+    end
+    if player and player.modifyTraitXPBoost then
+        pcall(player.modifyTraitXPBoost, player, trait, true)
+    end
+end
+
+local function syncTraits(player)
+    if sendSyncPlayerFields then
+        pcall(sendSyncPlayerFields, player, 0x00000003)
+    end
 end
 
 local function addXpBoostForPerk(xp, perk, mult)
@@ -262,12 +347,21 @@ local function addXpBoostForPerk(xp, perk, mult)
     return false
 end
 
-local function clearXpBoostForPerk(xp, perk)
+local function syncXpMultiplier(player, perk, mult, minLevel, maxLevel)
+    if not player or not perk then return end
+    if GameServer and GameServer.addXpMultiplier then
+        pcall(GameServer.addXpMultiplier, player, perk, mult, minLevel or 0, maxLevel or 0)
+    end
+end
+
+local function clearXpBoostForPerk(xp, perk, player)
     if not xp or not perk then return end
     if xp.setPerkBoost then pcall(xp.setPerkBoost, xp, perk, 0) end
     if xp.setXPBoost then pcall(xp.setXPBoost, xp, perk, 0) end
     if xp.AddXPBoost then pcall(xp.AddXPBoost, xp, perk, 0) end
     if xp.addXPBoost then pcall(xp.addXPBoost, xp, perk, 0) end
+    if xp.addXpMultiplier then pcall(xp.addXpMultiplier, xp, perk, 1.0, 0, 0) end
+    syncXpMultiplier(player, perk, 1.0, 0, 0)
 end
 
 local function setPerkLevel(player, perk, level)
@@ -299,6 +393,44 @@ local function getPerkLevel(player, perk)
     return 0
 end
 
+local function applySkillRewardLevel(player, perk, targetLevel)
+    if not player or not perk then return false end
+    local target = math.min(10, math.max(0, tonumber(targetLevel) or 0))
+    local current = getPerkLevel(player, perk)
+    if target <= current then return false end
+    local xp = player.getXp and player:getXp() or nil
+    local targetXp = perk.getTotalXpForLevel and perk:getTotalXpForLevel(target) or nil
+    local currentXp = (xp and xp.getXP and xp:getXP(perk)) or 0
+    local delta = targetXp and (targetXp - currentXp) or 0
+    if Server and Server.state and Server.state.debug then
+        local name = player.getUsername and player:getUsername() or tostring(player)
+        debugLog(string.format(
+            "Skill reward player=%s perk=%s current=%s target=%s currentXp=%.2f targetXp=%.2f delta=%.2f",
+            tostring(name),
+            tostring(perk),
+            tostring(current),
+            tostring(target),
+            tonumber(currentXp or 0) or 0,
+            tonumber(targetXp or 0) or 0,
+            tonumber(delta or 0) or 0
+        ))
+    end
+    if delta > 0 then
+        if GameServer and GameServer.addXp then
+            pcall(GameServer.addXp, player, perk, delta, true)
+        elseif xp and xp.AddXP then
+            pcall(xp.AddXP, xp, perk, delta, false, false, true)
+        end
+    end
+    if xp and xp.setXPToLevel then
+        pcall(xp.setXPToLevel, xp, perk, target)
+    end
+    if player and player.setPerkLevel then
+        pcall(player.setPerkLevel, player, perk, target)
+    end
+    return true
+end
+
 local function cleanupRewardBoosts(player, roundIndex)
     if not player or not player.getModData then return end
     local md = player:getModData()
@@ -310,7 +442,7 @@ local function cleanupRewardBoosts(player, roundIndex)
         if entry and entry.expiresRound and roundIndex and roundIndex >= entry.expiresRound then
             local perk = resolvePerk(entry.perkId)
             if perk then
-                clearXpBoostForPerk(xp, perk)
+                clearXpBoostForPerk(xp, perk, player)
             end
         else
             kept[#kept + 1] = entry
@@ -352,17 +484,40 @@ local function applyRewardChoice(player, choice, roundIndex)
         if perk and levels > 0 then
             local current = getPerkLevel(player, perk)
             local target = math.min(10, math.max(0, current + levels))
-            setPerkLevel(player, perk, target)
+            applySkillRewardLevel(player, perk, target)
             return true, { type = rewardType, skill = perkId, levels = levels }
         end
+    elseif rewardType == "skills" then
+        local list = entry.skills
+        if type(list) == "table" and #list > 0 then
+            local applied = {}
+            for i = 1, #list do
+                local s = list[i]
+                local perkId = s and (s.skill or s.id) or nil
+                local levels = tonumber(s and s.levels or 0) or 0
+                if perkId and levels > 0 then
+                    local perk = resolvePerk(perkId)
+                    if perk then
+                        local current = getPerkLevel(player, perk)
+                        local target = math.min(10, math.max(0, current + levels))
+                        applySkillRewardLevel(player, perk, target)
+                        applied[#applied + 1] = { skill = perkId, levels = levels }
+                    end
+                end
+            end
+            if #applied > 0 then
+                return true, { type = rewardType, skills = applied }
+            end
+        end
     elseif rewardType == "xpBoost" then
-        local perkId = entry.skill or entry.perk or entry.id
+        local perkId = entry.skill or entry.id
         local mult = tonumber(entry.amount or entry.mult or 0) or 0
         local duration = tonumber(entry.durationRounds or 0) or 0
         local perk = resolvePerk(perkId)
         if perk and mult > 0 then
             local xp = player.getXp and player:getXp() or nil
             addXpBoostForPerk(xp, perk, mult)
+            syncXpMultiplier(player, perk, mult, 0, 0)
             md.RogueRewardBoosts = md.RogueRewardBoosts or {}
             md.RogueRewardBoosts[#md.RogueRewardBoosts + 1] = {
                 perkId = perkId,
@@ -371,7 +526,24 @@ local function applyRewardChoice(player, choice, roundIndex)
             }
             return true, { type = rewardType, skill = perkId, amount = mult, durationRounds = duration }
         end
-    elseif rewardType == "blessing" or rewardType == "trait" then
+    elseif rewardType == "trait" then
+        local id = entry.id
+        local trait = resolveTrait(id)
+        if id and id ~= "" and trait then
+            local hadTrait = hasTrait(player, trait)
+            if hadTrait then
+                removeTrait(player, trait)
+            else
+                addTrait(player, trait)
+            end
+            local nutrition = player.getNutrition and player:getNutrition() or nil
+            if nutrition and nutrition.applyWeightFromTraits then
+                pcall(nutrition.applyWeightFromTraits, nutrition)
+            end
+            syncTraits(player)
+            return true, { type = rewardType, id = id, action = hadTrait and "removed" or "added" }
+        end
+    elseif rewardType == "blessing" then
         local id = entry.id
         if id and id ~= "" then
             md.RogueBlessings = md.RogueBlessings or {}
@@ -397,7 +569,7 @@ local function buildRewardChoices(player)
     for slot = 1, count do
         local rule = getRarityRuleForSlot(slot)
         local rarity = pickWeightedRarity(weights, rule)
-        local entry = pickRewardFromPool(rarity, rule, used)
+        local entry = pickRewardFromPool(rarity, rule, used, player)
         if entry then
             local key = tostring(entry.type) .. ":" .. tostring(entry.id or entry.skill or entry.amount or entry.qty or entry.levels or slot)
             used[key] = true
@@ -1688,6 +1860,39 @@ function Server.countLivePlayersInArena()
     return count
 end
 
+function Server.countZombiesInArena(bufferOverride)
+    if not Config.isRectValid(Config.ZONES.ARENA) then
+        return 0
+    end
+    local rect = Config.ZONES.ARENA
+    local buffer = tonumber(bufferOverride)
+    if buffer == nil then
+        buffer = math.max(Config.ARENA_ALIVE_BUFFER or 0, Config.SPAWN_ARENA_BUFFER or 0)
+    end
+    local x1 = math.min(rect.x1, rect.x2) - buffer
+    local x2 = math.max(rect.x1, rect.x2) + buffer
+    local y1 = math.min(rect.y1, rect.y2) - buffer
+    local y2 = math.max(rect.y1, rect.y2) + buffer
+    local z = rect.z or 0
+    local zs = getCell() and getCell():getZombieList() or nil
+    if not zs then return 0 end
+    local count = 0
+    for i = 0, zs:size() - 1 do
+        local zb = zs:get(i)
+        if zb and zb:getZ() == z then
+            local zx = zb:getX()
+            local zy = zb:getY()
+            if zx >= x1 and zx <= x2 and zy >= y1 and zy <= y2 then
+                local okDead, isDead = pcall(zb.isDead, zb)
+                if not okDead or not isDead then
+                    count = count + 1
+                end
+            end
+        end
+    end
+    return count
+end
+
 function Server.trackDeaths()
     local players = getOnlinePlayers()
     if not players then
@@ -2614,13 +2819,14 @@ function Server.onTick()
             local soft = Config.getWaveSoftSeconds and Config.getWaveSoftSeconds(Server.state.killTarget) or (Config.WAVE_SOFT_SECONDS or 180)
             local step = Config.TIER_ESCALATE_EVERY_SECONDS or 30
             local warnBefore = tonumber(Config.ROUND_OVERTIME_SOON_SECONDS) or 0
-            if warnBefore > 0 and soft > warnBefore and not Server.state.overtimeSoonSent then
+            local budgetLeft = tonumber(Server.state.spawnBudgetRemaining or 0) or 0
+            if budgetLeft <= 0 and warnBefore > 0 and soft > warnBefore and not Server.state.overtimeSoonSent then
                 if elapsed >= (soft - warnBefore) then
                     Server.state.overtimeSoonSent = true
                     sendServerCommand("Rogue", "roundOvertimeSoon", {})
                 end
             end
-            if elapsed >= soft then
+            if elapsed >= soft and budgetLeft <= 0 then
                 if not Server.state.overtimeAnnounced then
                     Server.state.overtimeAnnounced = true
                     Server.broadcastAnnounce("OVERTIME! Tier escalation every 30s.")
@@ -2633,6 +2839,16 @@ function Server.onTick()
                     local runnerPct = tonumber(runnerMap[newTier]) or 0
                     local pct = math.floor((runnerPct * 100) + 0.5)
                     Server.broadcastAnnounce(string.format("Sprinter: %d%%", pct))
+                end
+                local remaining = (Server.state.killTarget or 0) - (Server.state.killsThisWave or 0)
+                if remaining > 0 then
+                    local buffer = math.max(Config.ARENA_ALIVE_BUFFER or 0, Config.SPAWN_ARENA_BUFFER or 0)
+                    local present = Server.countZombiesInArena(buffer)
+                    local deficit = remaining - present
+                    if deficit > 0 then
+                        Server.state.spawnBudgetRemaining = (Server.state.spawnBudgetRemaining or 0) + deficit
+                        debugLog("Overtime refill budget +" .. tostring(deficit) .. " remaining=" .. tostring(remaining) .. " present=" .. tostring(present))
+                    end
                 end
             end
             Server.applyArenaTier(Server.state.currentTier)

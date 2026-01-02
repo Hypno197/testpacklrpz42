@@ -8,15 +8,21 @@ if not Rogue.Config then require "RogueConfig" end
 local Config = Rogue.Config
 
 local function debugLog(msg)
-    if Rogue.Server and Rogue.Server.state and Rogue.Server.state.debug then
-        print("[Roguelityno][Spawns] " .. tostring(msg))
-    end
+    print("[Roguelityno][Spawns] " .. tostring(msg))
 end
 
 local function warnLog(msg)
-    if Rogue.Server and Rogue.Server.state and Rogue.Server.state.debug then
-        print("[Roguelityno][Spawns][WARN] " .. tostring(msg))
+    print("[Roguelityno][Spawns][WARN] " .. tostring(msg))
+end
+
+local function safeCountZombiesInArena(buffer)
+    if Rogue and Rogue.Server and Rogue.Server.countZombiesInArena then
+        local ok, count = pcall(Rogue.Server.countZombiesInArena, buffer)
+        if ok then
+            return count
+        end
     end
+    return nil
 end
 
 local function getArenaBounds()
@@ -191,6 +197,7 @@ function Spawns.spawnWaveBatch(state, playersLive)
     if #points < 1 then return 0 end
     local point = nil
     local pointIndex = nil
+    local chosenCountAt = nil
     for i = 1, #points do
         local idx = ZombRand(#points) + 1
         local candidate = points[idx]
@@ -199,6 +206,7 @@ function Spawns.spawnWaveBatch(state, playersLive)
             point = candidate
             pointIndex = idx
             size = math.min(size, perPointCap - countAt)
+            chosenCountAt = countAt
             break
         end
     end
@@ -211,7 +219,16 @@ function Spawns.spawnWaveBatch(state, playersLive)
     local x = math.floor(tonumber(point.x) or 0)
     local y = math.floor(tonumber(point.y) or 0)
     local z = math.floor(tonumber(point.z) or 0)
+    local buffer = Config.SPAWN_ARENA_BUFFER or 6
+    local square = getCell() and getCell():getGridSquare(x, y, z) or nil
+    debugLog(
+        "Pick point idx=" .. tostring(pointIndex)
+            .. " at=(" .. tostring(x) .. "," .. tostring(y) .. "," .. tostring(z) .. ")"
+            .. " square=" .. tostring(square ~= nil)
+            .. " buffer=" .. tostring(buffer)
+    )
 
+    local arenaCountBefore = safeCountZombiesInArena(buffer)
     local spawned, err = safeAddZombiesInOutfit(x, y, z, size)
     if not spawned then
         warnLog("addZombiesInOutfit failed: " .. tostring(err))
@@ -229,11 +246,33 @@ function Spawns.spawnWaveBatch(state, playersLive)
         spawned = 0
     end
 
+    local arenaCountAfter = safeCountZombiesInArena(buffer)
+    if spawned > 0 and arenaCountBefore ~= nil and arenaCountAfter ~= nil and arenaCountAfter <= arenaCountBefore then
+        warnLog(
+            "Spawn API returned>0 but arenaCount did not increase"
+                .. " before=" .. tostring(arenaCountBefore)
+                .. " after=" .. tostring(arenaCountAfter)
+        )
+        spawned = 0
+    end
+
     if spawned > 0 then
         if pointIndex then
             state.spawnPointCounts[pointIndex] = (state.spawnPointCounts[pointIndex] or 0) + spawned
         end
-        debugLog("Spawned " .. tostring(spawned) .. " at (" .. tostring(x) .. "," .. tostring(y) .. "," .. tostring(z) .. ")")
+        debugLog(
+            "Spawned " .. tostring(spawned)
+                .. " req=" .. tostring(size)
+                .. " budget=" .. tostring(budget)
+                .. " tier=" .. tostring(tier)
+                .. " live=" .. tostring(live)
+                .. " capTotal=" .. tostring(totalCap)
+                .. " capPoint=" .. tostring(perPointCap)
+                .. " pointCount=" .. tostring(chosenCountAt or 0)
+                .. " at=(" .. tostring(x) .. "," .. tostring(y) .. "," .. tostring(z) .. ")"
+                .. (arenaCountAfter ~= nil and (" arenaCount=" .. tostring(arenaCountAfter)) or "")
+                .. (arenaCountBefore ~= nil and (" arenaBefore=" .. tostring(arenaCountBefore)) or "")
+        )
     end
 
     return spawned

@@ -36,7 +36,7 @@ Config.TIER_ESCALATE_EVERY_SECONDS = 30
 
 Config.baseKillsPerPlayer = 30
 Config.killsPerRoundSlope = 0.25
-Config.spawnBudgetBuffer = 1.20
+Config.spawnBudgetBuffer = 1.0
 Config.DIFFICULTY_LEVEL = 2
 Config.DIFFICULTY_PRESETS = {
     {
@@ -324,11 +324,18 @@ Config.REWARD_CATEGORY_RULES = {
 }
 Config.REWARD_POOLS = {
     common = {
-        { type = "currency", amount = 10 },
-        { type = "item", id = "Base.Bandage", qty = 2 },
-        { type = "heal", id = "Rogue.FullRestoreSerum", qty = 1 },
+        -- { type = "currency", amount = 10 },
+        -- { type = "xpBoost", skill = "Axe", amount = 1.2, durationRounds = 2 },
+        { type = "xpBoost", skill = "SmallBlunt", amount = 1.2, durationRounds = 2 },
+        { type = "xpBoost", skill = "Blunt", amount = 1.2, durationRounds = 2 },
+        { type = "skill", skill = "Maintenance", levels = 1 },
+        { type = "skill", skill = "Nimble", levels = 1 },
+        { type = "skill", skill = "Axe", levels = 2 },        
+        -- { type = "item", id = "Base.Bandage", qty = 2 },
+        -- { type = "heal", id = "Rogue.FullRestoreSerum", qty = 1 },
     },
     uncommon = {
+        { type = "skills", skills = { { id = "Sprinting", levels = 2 }, { id = "Nimble", levels = 1 } } },
         { type = "currency", amount = 18 },
         { type = "item", id = "Base.WaterBottle", qty = 1 },
         { type = "skill", skill = "Maintenance", levels = 1 },
@@ -485,7 +492,7 @@ Config.GLOBAL_XP_BOOST_MULT = 0
 Config.GLOBAL_XP_BOOSTS = {}
 
 Config.BUILD_SHOP = {
-    { id = "roguelityno:test_build", price = 0 },
+    -- { id = "roguelityno:test_build", price = 0 },
     { id = "roguelityno:bimbolama", price = 50 },
     { id = "roguelityno:uomo_ascia", price = 50 },
     { id = "roguelityno:uomo_sasso", price = 50 },
@@ -541,7 +548,7 @@ Config.BUILDS = {
         desc = "Assassino mobile: velocita' alta e critico con lame corte. Glass cannon, non perdona ma letale se giocato bene.",
         icon = "profession_burglar",
         iconItem = "Base.KnifeButterfly",
-        skills = { ShortBlade = 4, Maintenance = 4, Nimble = 3, Sprinting = 3, LightFoot = 4, Sneak = 4, Doctor = 4},
+        skills = { SmallBlade = 4, Maintenance = 4, Nimble = 3, Sprinting = 3, LightFoot = 4, Sneak = 4, Doctor = 4},
         xpBoosts = {},
         startingStats = { Strength = 5, Fitness = 8 },
         traits = {
@@ -603,7 +610,7 @@ Config.BUILDS = {
         desc = "Artigiano anti-tecnologia: costruisce difese e forgia roba primitiva. Niente armi da fuoco, domina il setup.",
         icon = "profession_constructionworker",
         iconItem = "Base.StoneChisel",
-        skills = { Axe = 3, Maintenance = 4, Blunt = 4, LongBlunt = 4, Masonry = 10, Blacksmith = 10, Woodwork = 10, Carving = 10, Fishing = 10, FlintKnapping = 10, Nimble = 2, Sprinting = 3},
+        skills = { Axe = 3, Maintenance = 4, SmallBlunt = 4, Blunt = 4, Masonry = 10, Blacksmith = 10, Woodwork = 10, Carving = 10, Fishing = 10, FlintKnapping = 10, Nimble = 2, Sprinting = 3},
         xpBoosts = {},
         startingStats = { Strength = 10, Fitness = 8 },
         traits = {
@@ -636,7 +643,7 @@ Config.BUILDS = {
         desc = "Goblin del loot: arraffa tutto, preferisce armi da fuoco. Codardo e claustrofobico: forte se gira, crolla se bloccato.",
         icon = "profession_veteran",
         iconItem = "Base.Pistol",
-        skills = { Maintenance = 3, Blunt = 2, LongBlade = 3, Nimble = 4, Sprinting = 3, Aiming = 4, Reloading = 6, Doctor = 4},
+        skills = { Maintenance = 3, SmallBlunt = 2, LongBlade = 3, Nimble = 4, Sprinting = 3, Aiming = 4, Reloading = 6, Doctor = 4},
         xpBoosts = {},
         startingStats = { Strength = 6, Fitness = 7 },
         traits = {
@@ -666,13 +673,13 @@ Config.BUILDS = {
         desc = "Allrounder leggendario. Impara in fretta, manutenzione alta, nessun debuff di respawn nella modalita' Rumble.",
         icon = "profession_fireofficer",
         iconItem = "Base.Hat_Beany",
-        skills = { Axe = 3, Maintenance = 4, Blunt = 3, LongBlunt = 3, LongBlade = 3, Spear = 3, Nimble = 2, Sprinting = 3, Aiming = 2, Reloading = 4, Doctor = 4},
+        skills = { Axe = 3, Maintenance = 4, SmallBlunt = 3, Blunt = 3, LongBlade = 3, Spear = 3, Nimble = 2, Sprinting = 3, Aiming = 2, Reloading = 4, Doctor = 4},
         xpBoosts = {
             Axe = 2,
+            SmallBlunt = 2,
             Blunt = 2,
-            LongBlunt = 2,
             LongBlade = 2,
-            ShortBlade = 2,
+            SmallBlade = 2,
             Spear = 2,
             Aiming = 1,
         },
@@ -699,11 +706,11 @@ Config.BUILDS = {
         desc = "Meccanico dell'est europa. Forza massima, contundenti forti, polmoni bucati. Nel weekend va a sparare col cugino in campagna. Fagli scolare una bella bottiglia piena col tasto destro e torna come nuovo, proprio come la vecchia Betty!",
         icon = "profession_mechanic",
         iconItem = "Base.BlowTorch",
-        skills = { Maintenance = 4, Blunt = 4, LongBlunt = 4, ShortBlade = 3, Nimble = 2, Aiming = 2, Reloading = 4, MetalWelding = 6, Mechanics = 10, Electrical = 4},
+        skills = { Maintenance = 4, SmallBlunt = 4, Blunt = 4, SmallBlade = 3, Nimble = 2, Aiming = 2, Reloading = 4, MetalWelding = 6, Mechanics = 10, Electrical = 4},
         xpBoosts = {
             MetalWelding = 8,
+            SmallBlunt = 2,
             Blunt = 2,
-            LongBlunt = 2,
             Maintenance = 2,
         },
         startingStats = { Strength = 10, Fitness = 5 },
@@ -731,7 +738,7 @@ Config.BUILDS = {
         desc = "Il regista. Evidente e allergico, attira orde con strumenti rumorosi.",
         icon = "profession_engineer",
         iconItem = "Base.AlarmClock",
-        skills = { ShortBlade = 3, Maintenance = 4, Blunt = 3, LongBlunt = 3, LongBlade = 3, Spear = 3, Nimble = 2, Sprinting = 3, Aiming = 2, Reloading = 4},
+        skills = { SmallBlade = 3, Maintenance = 4, SmallBlunt = 3, Blunt = 3, LongBlade = 3, Spear = 3, Nimble = 2, Sprinting = 3, Aiming = 2, Reloading = 4},
         xpBoosts = {},
         startingStats = { Strength = 8, Fitness = 8 },
         traits = {
@@ -800,8 +807,7 @@ function Config.applyDifficulty(level)
 end
 
 function Config.getSpawnBudget(killTarget)
-    local target = math.max(1, tonumber(killTarget) or 1)
-    return math.ceil(target * Config.spawnBudgetBuffer)
+    return math.max(1, math.floor(tonumber(killTarget) or 1))
 end
 
 function Config.tierFromProgress(progress)
@@ -874,3 +880,5 @@ function Config.hasValidSetup()
     end
     return true
 end
+
+
