@@ -1,0 +1,5 @@
+name=resuscityno
+id=resuscityno
+description=Resuscityno - MP-safe incapacitation and revive framework for B42.
+versionMin=42.00
+modversion=0.1

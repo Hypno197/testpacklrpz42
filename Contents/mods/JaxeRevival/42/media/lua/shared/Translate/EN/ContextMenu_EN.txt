@@ -1,0 +1,5 @@
+ContextMenu_EN = {
+	ContextMenu_JaxeRevival_Action = "Revive %s"
+	ContextMenu_JaxeRevival_ActionFirstAidRequired = "Cannot revive %s (Requires First Aid level %s)"
+	ContextMenu_JaxeRevival_ActionDoctorProfessionRequired = "Cannot revive %s (Requires Doctor profession)"
+}

@@ -55,6 +55,8 @@ function RogueBogdanoDrinkAction:new(character, item)
     local o = ISBaseTimedAction.new(self, character)
     o.character = character
     o.item = item
+    o.stopOnWalk = false
+    o.stopOnRun = false
     o.maxTime = o:getDuration()
     o.useProgressBar = true
     o._bogdanoLoggedInvalid = false
@@ -154,6 +156,9 @@ function RogueBogdanoDrinkAction:complete()
     local alcohol = tonumber(cfg.BOGDANO_ALCOHOL) or 0
     local seconds = tonumber(cfg.BOGDANO_DRUNK_SECONDS) or 30
     local target = tonumber(cfg.BOGDANO_DRUNK_TARGET) or 100
+    if Rogue.FullRestore and Rogue.FullRestore.apply then
+        Rogue.FullRestore.apply(self.character)
+    end
     local bd = self.character and self.character.getBodyDamage and self.character:getBodyDamage() or nil
     if bd and bd.JustDrankBoozeFluid and alcohol > 0 then
         safeCall(bd, "JustDrankBoozeFluid", alcohol)
@@ -188,9 +193,6 @@ function RogueBogdanoDrinkAction:complete()
         if smashed and sendAddItemToContainer then
             sendAddItemToContainer(container, smashed)
         end
-    end
-    if Rogue.FullRestore and Rogue.FullRestore.apply then
-        Rogue.FullRestore.apply(self.character)
     end
     return true
 end

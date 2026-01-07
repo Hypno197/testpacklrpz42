@@ -128,7 +128,24 @@ end
 function Spawns.tick(state, nowMs, playersLive)
     if not state or state.status ~= Rogue.Server.STATE_WAVE then return end
     if not Config.hasValidSetup() then return end
-    if (state.spawnBudgetRemaining or 0) <= 0 then return end
+    local budget = state.spawnBudgetRemaining or 0
+    if budget <= 0 then return end
+
+    local killTarget = tonumber(state.killTarget or 0) or 0
+    if killTarget > 0 then
+        local present = safeCountZombiesInArena(0)
+        if present ~= nil then
+            local remaining = math.max(0, killTarget - (state.killsThisWave or 0) - present)
+            if remaining <= 0 then
+                state.spawnBudgetRemaining = 0
+                return
+            end
+            if budget > remaining then
+                state.spawnBudgetRemaining = remaining
+                budget = remaining
+            end
+        end
+    end
 
     local nextAt = state.spawnNextAtMs or nowMs
     if nowMs < nextAt then return end
@@ -141,14 +158,24 @@ function Spawns.tick(state, nowMs, playersLive)
     end
 
     local points = state.spawnPointsFixed or Config.SPAWN_POINTS or {}
-    local staticPerPointCap = Config.SPAWN_MAX_PER_POINT_PER_MINUTE or 6
-    local sqrtCap = (Config.SPAWN_MAX_PER_MIN_BASE or 0)
-        + (Config.SPAWN_MAX_PER_MIN_PER_PLAYER_SQRT or 0) * math.sqrt(math.max(1, tonumber(playersLive) or 1))
+    local staticPerPointCap = tonumber(Config.SPAWN_MAX_PER_POINT_PER_MINUTE) or 6
+    if staticPerPointCap <= 0 then
+        staticPerPointCap = math.huge
+    end
+    local baseCap = tonumber(Config.SPAWN_MAX_PER_MIN_BASE or 0) or 0
+    local perPlayerCap = tonumber(Config.SPAWN_MAX_PER_MIN_PER_PLAYER_SQRT or 0) or 0
+    local sqrtCap = baseCap + perPlayerCap * math.sqrt(math.max(1, tonumber(playersLive) or 1))
     local totalCap = math.floor(sqrtCap)
-    local perPointCap = math.max(staticPerPointCap, math.ceil(totalCap / math.max(1, #points)))
+    if totalCap <= 0 then
+        totalCap = math.huge
+    end
+    local perPointCap = staticPerPointCap
+    if totalCap ~= math.huge then
+        perPointCap = math.max(staticPerPointCap, math.ceil(totalCap / math.max(1, #points)))
+    end
     state.spawnTotalCap = totalCap
     state.spawnPerPointCap = perPointCap
-    if (state.spawnMinuteCount or 0) >= totalCap then
+    if totalCap ~= math.huge and (state.spawnMinuteCount or 0) >= totalCap then
         return
     end
 
@@ -159,7 +186,7 @@ function Spawns.tick(state, nowMs, playersLive)
     state.spawnNextAtMs = nowMs + (state.spawnIntervalMs or 8000)
 end
 
-local function isOutsideArenaWithBuffer(point)
+local function isInArenaBufferRing(point)
     if not Config.isRectValid(Config.ZONES.ARENA) then
         return true
     end
@@ -171,7 +198,9 @@ local function isOutsideArenaWithBuffer(point)
     local buffer = Config.SPAWN_ARENA_BUFFER or 6
     local x = point.x
     local y = point.y
-    return (x <= (x1 - buffer)) or (x >= (x2 + buffer)) or (y <= (y1 - buffer)) or (y >= (y2 + buffer))
+    local inArena = (x >= x1 and x <= x2 and y >= y1 and y <= y2)
+    local inBuffer = (x >= (x1 - buffer) and x <= (x2 + buffer) and y >= (y1 - buffer) and y <= (y2 + buffer))
+    return (not inArena) and inBuffer
 end
 
 function Spawns.spawnWaveBatch(state, playersLive)
@@ -186,6 +215,16 @@ function Spawns.spawnWaveBatch(state, playersLive)
         + live * (Config.SPAWN_GROUP_PER_PLAYER or 2)
         + math.max(0, tier - 1) * (Config.SPAWN_GROUP_TIER_BONUS or 1)
 
+    local divisor = tonumber(Config.SPAWN_GROUP_DIVISOR) or 1
+    if divisor > 1 then
+        size = math.max(1, math.ceil(size / divisor))
+    end
+
+    local mult = tonumber(Config.SPAWN_GROUP_MULT) or 1.0
+    if mult ~= 1.0 then
+        size = math.max(1, math.floor(size * mult + 0.5))
+    end
+
     size = math.min(size, Config.SPAWN_GROUP_MAX or size, budget)
     local points = state.spawnPointsFixed or Config.SPAWN_POINTS or {}
     local perPointCap = state.spawnPerPointCap or (Config.SPAWN_MAX_PER_POINT_PER_MINUTE or 6)
@@ -193,6 +232,18 @@ function Spawns.spawnWaveBatch(state, playersLive)
     local remainingTotal = math.max(0, totalCap - (state.spawnMinuteCount or 0))
     size = math.min(size, remainingTotal)
     if size <= 0 then return 0 end
+
+    local arenaCountBefore = safeCountZombiesInArena(0)
+    local killTarget = tonumber(state.killTarget or 0) or 0
+    local killsSoFar = tonumber(state.killsThisWave or 0) or 0
+    if arenaCountBefore ~= nil and killTarget > 0 then
+        local remaining = math.max(0, killTarget - killsSoFar - arenaCountBefore)
+        if remaining <= 0 then
+            return 0
+        end
+        size = math.min(size, remaining)
+        if size <= 0 then return 0 end
+    end
 
     if #points < 1 then return 0 end
     local point = nil
@@ -202,7 +253,7 @@ function Spawns.spawnWaveBatch(state, playersLive)
         local idx = ZombRand(#points) + 1
         local candidate = points[idx]
         local countAt = state.spawnPointCounts[idx] or 0
-        if candidate and countAt < perPointCap and isOutsideArenaWithBuffer(candidate) then
+        if candidate and countAt < perPointCap and isInArenaBufferRing(candidate) then
             point = candidate
             pointIndex = idx
             size = math.min(size, perPointCap - countAt)
@@ -211,7 +262,7 @@ function Spawns.spawnWaveBatch(state, playersLive)
         end
     end
     if not point then
-        warnLog("No spawn points outside arena buffer; skipped batch size=" .. tostring(size))
+        warnLog("No spawn points in arena buffer ring; skipped batch size=" .. tostring(size))
         return 0
     end
     if not point then return 0 end
@@ -219,7 +270,6 @@ function Spawns.spawnWaveBatch(state, playersLive)
     local x = math.floor(tonumber(point.x) or 0)
     local y = math.floor(tonumber(point.y) or 0)
     local z = math.floor(tonumber(point.z) or 0)
-    local buffer = Config.SPAWN_ARENA_BUFFER or 6
     local square = getCell() and getCell():getGridSquare(x, y, z) or nil
     debugLog(
         "Pick point idx=" .. tostring(pointIndex)
@@ -228,7 +278,6 @@ function Spawns.spawnWaveBatch(state, playersLive)
             .. " buffer=" .. tostring(buffer)
     )
 
-    local arenaCountBefore = safeCountZombiesInArena(buffer)
     local spawned, err = safeAddZombiesInOutfit(x, y, z, size)
     if not spawned then
         warnLog("addZombiesInOutfit failed: " .. tostring(err))
@@ -253,7 +302,6 @@ function Spawns.spawnWaveBatch(state, playersLive)
                 .. " before=" .. tostring(arenaCountBefore)
                 .. " after=" .. tostring(arenaCountAfter)
         )
-        spawned = 0
     end
 
     if spawned > 0 then

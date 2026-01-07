@@ -1,3 +1,5 @@
 ItemName_IT = {
-    ItemName_Rogue.FullRestoreSerum = "Siero Rigenerante Sperimentale"
+    ItemName_Rogue.FullRestoreSerum = "Siero Rigenerante Sperimentale",
+    ItemName_Rogue.ModKit_Improvised = "Kit Modifica Improvvisato",
+    ItemName_Rogue.ModKit_Special = "Kit Modifica Raro"
 }

@@ -66,6 +66,12 @@ module RogueSound
         is3D = false,
         clip = rogue_round_prep_2,
     }
+    sound rogue_prep_countdown
+    {
+        category = UI,
+        is3D = false,
+        clip = rogue_prep_countdown,
+    }
     sound rogue_round_start_1
     {
         category = UI,
@@ -192,5 +198,11 @@ module RogueSound
         category = UI,
         is3D = false,
         clip = BogdanoDrinkBurp,
+    }
+    sound out_of_bounds_geiger
+    {
+        category = UI,
+        is3D = false,
+        clip = out_of_bounds_geiger,
     }
 }

@@ -81,6 +81,8 @@ function RogueFullRestoreAction:new(character, item)
     local o = ISBaseTimedAction.new(self, character)
     o.character = character
     o.item = item
+    o.stopOnWalk = false
+    o.stopOnRun = false
     o.maxTime = o:getDuration()
     o.useProgressBar = true
     return o

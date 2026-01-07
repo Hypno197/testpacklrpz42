@@ -1,0 +1,9 @@
+id=JaxeRevivalLRPZ
+name=REVIVAL by Jaxe
+modversion=1.3.2
+poster=poster.png
+description=<RGB:1,0.75,0>Alternate Death Mechanics: Revive Your Friends, Live Again. <RGB:1,1,1>
+description= <LINE> <LINE>
+description=Instead of dying immediately, players enter an incapacitated state where they can be revived by others. Depending on adjustable rules, if left unattended for a certain period, incapacitated players will either recover or die, potentially suffering a loss of skills. Death can still occur if the player receives excessive damage or through standard mechanics such as zombification if such options are enabled.
+description= <LINE> <LINE>
+description=This mod aims to make death less final and enhances immersion by suggesting that perhaps the virus affects players differently - rather than turning into zombies, they remain fully conscious while their bodies and organs gradually recover to a functional state.

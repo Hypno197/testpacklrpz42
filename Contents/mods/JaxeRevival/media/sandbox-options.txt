@@ -1,0 +1,97 @@
+VERSION = 1,
+
+option JaxeRevival.IncapacitatedHealth
+{
+	type = integer, min = 5, max = 80, default = 25,
+	page = JaxeRevival, translation = JaxeRevival_IncapacitatedHealth
+}
+
+option JaxeRevival.IncapacitatedTime
+{
+	type = integer, min = 0, max = 240, default = 6,
+	page = JaxeRevival, translation = JaxeRevival_IncapacitatedTime
+}
+
+option JaxeRevival.IncapacitatedTimeVariance
+{
+	type = integer, min = 0, max = 600, default = 0,
+	page = JaxeRevival, translation = JaxeRevival_IncapacitatedTimeVariance
+}
+
+option JaxeRevival.ShowExactCountdown
+{
+	type = boolean, default = false,
+	page = JaxeRevival, translation = JaxeRevival_ShowExactCountdown
+}
+
+option JaxeRevival.AssistedRecoveryTicks
+{
+	type = integer, min = 100, max = 3000, default = 1200,
+	page = JaxeRevival, translation = JaxeRevival_AssistedRecoveryTicks
+}
+
+option JaxeRevival.UnassistedRecovery
+{
+	type = boolean, default = true,
+	page = JaxeRevival, translation = JaxeRevival_UnassistedRecovery
+}
+
+option JaxeRevival.RecoveryRequiresPassive
+{
+	type = boolean, default = false,
+	page = JaxeRevival, translation = JaxeRevival_RecoveryRequiresPassive
+}
+
+option JaxeRevival.RecoveryHealth
+{
+	type = integer, min = 5, max = 100, default = 50,
+	page = JaxeRevival, translation = JaxeRevival_RecoveryHealth
+}
+
+option JaxeRevival.RecoveryRemovesInjuries
+{
+	type = boolean, default = false,
+	page = JaxeRevival, translation = JaxeRevival_RecoveryRemovesInjuries
+}
+
+option JaxeRevival.PassiveSkillLoss
+{
+	type = integer, min = 0, max = 100, default = 50,
+	page = JaxeRevival, translation = JaxeRevival_PassiveSkillLoss
+}
+
+option JaxeRevival.AgilitySkillLoss
+{
+	type = integer, min = 0, max = 100, default = 25,
+	page = JaxeRevival, translation = JaxeRevival_AgilitySkillLoss
+}
+
+option JaxeRevival.WeaponSkillLoss
+{
+	type = integer, min = 0, max = 100, default = 10,
+	page = JaxeRevival, translation = JaxeRevival_WeaponSkillLoss
+}
+
+option JaxeRevival.OtherSkillLoss
+{
+	type = integer, min = 0, max = 100, default = 0,
+	page = JaxeRevival, translation = JaxeRevival_OtherSkillLoss
+}
+
+option JaxeRevival.FirstAidRequired
+{
+	type = integer, min = 0, max = 10, default = 0,
+	page = JaxeRevival, translation = JaxeRevival_FirstAidRequired
+}
+
+option JaxeRevival.DoctorProfessionRequired
+{
+	type = boolean, default = false,
+	page = JaxeRevival, translation = JaxeRevival_DoctorProfessionRequired
+}
+
+option JaxeRevival.DragDownAllowed
+{
+	type = boolean, default = false,
+	page = JaxeRevival, translation = JaxeRevival_DragDownAllowed
+}

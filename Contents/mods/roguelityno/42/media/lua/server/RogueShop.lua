@@ -44,6 +44,10 @@ end
 function Shop.setStock(category, itemId, amount)
     if not category or not itemId then return end
     Shop._stock[category] = Shop._stock[category] or {}
+    if amount == nil then
+        Shop._stock[category][itemId] = nil
+        return
+    end
     Shop._stock[category][itemId] = math.max(0, math.floor(tonumber(amount) or 0))
 end
 
@@ -70,25 +74,58 @@ function Shop.applyRoundStock(roundIndex, playersLive, isInitial)
     local lists = Config.SHOP_ITEMS or {}
     local round = math.max(1, tonumber(roundIndex) or 1)
     local players = math.max(1, tonumber(playersLive) or 1)
+    local globalPer = tonumber(Config.SHOP_MAX_STOCK_PER_PLAYER) or 0
+    local globalMin = tonumber(Config.SHOP_MAX_STOCK_MIN) or 0
+    local globalCap = nil
+    if globalPer > 0 or globalMin > 0 then
+        globalCap = math.max(globalMin, math.floor(globalPer * players + 0.5))
+    end
     for category, items in pairs(lists) do
         if type(items) == "table" then
             for i = 1, #items do
                 local entry = items[i]
                 local itemId = entry and entry.id or nil
                 if itemId then
-                    local startPer = parseNumber(entry.startStockPerPlayer, 0) or 0
+                    local startRaw = entry.startStockPerPlayer
+                    local startPer = parseNumber(startRaw, 0) or 0
                     local restockPer = parseNumber(entry.restockPerPlayer, 0) or 0
                     local restockEvery = math.max(0, math.floor(parseNumber(entry.restockEveryNrounds, 0) or 0))
+                    local maxStockRaw = entry.maxStock
+                    local maxStock = nil
+                    if maxStockRaw ~= nil then
+                        maxStock = math.max(0, math.floor(parseNumber(maxStockRaw, 0) or 0))
+                    end
                     if isInitial then
-                        if startPer > 0 then
+                        if startRaw == nil or startPer < 0 then
+                            if maxStock ~= nil then
+                                Shop.setStock(category, itemId, maxStock)
+                            else
+                                Shop.setStock(category, itemId, nil)
+                            end
+                        elseif startPer == 0 then
+                            Shop.setStock(category, itemId, 0)
+                        elseif startPer > 0 then
                             local startQty = ceilScaled(startPer, players)
+                            if maxStock ~= nil then
+                                startQty = math.min(startQty, maxStock)
+                            end
+                            if globalCap ~= nil then
+                                startQty = math.min(startQty, globalCap)
+                            end
                             Shop.setStock(category, itemId, startQty)
                         end
                     elseif restockEvery > 0 and (round % restockEvery == 0) then
-                        if restockPer > 0 then
+                        local current = Shop.getStock(category, itemId)
+                        if current ~= nil and restockPer > 0 then
                             local addQty = ceilScaled(restockPer, players)
-                            local current = Shop.getStock(category, itemId) or 0
-                            Shop.setStock(category, itemId, current + addQty)
+                            local newQty = current + addQty
+                            if maxStock ~= nil then
+                                newQty = math.min(newQty, maxStock)
+                            end
+                            if globalCap ~= nil then
+                                newQty = math.min(newQty, globalCap)
+                            end
+                            Shop.setStock(category, itemId, newQty)
                         end
                     end
                 end

@@ -71,6 +71,9 @@ ClothingSelectionDefinitions.default = {
 					 "Base.Trousers_Shellsuit_TINT","Base.Shorts_BoxingBlue","Base.Shorts_BoxingRed","Base.Shorts_LongDenim","Base.Shorts_LongSport","Base.Shorts_LongSport_Red",
 					 "Base.Shorts_ShortDenim","Base.Shorts_ShortFormal","Base.Shorts_ShortSport","Base.Dungarees"},
 		},
+		Belt = {
+			items = {"Base.Belt2"},
+		},
 		Skirt = {
 			items = {"Base.Skirt_Long","Base.Skirt_Knees","Base.Skirt_Normal","Base.Skirt_Short","Base.Skirt_Mini"},
 		},
@@ -237,6 +240,9 @@ ClothingSelectionDefinitions.default = {
 					 "Base.Trousers_Shellsuit_TINT","Base.Shorts_BoxingBlue","Base.Shorts_BoxingRed","Base.Shorts_LongDenim","Base.Shorts_LongSport","Base.Shorts_LongSport_Red",
 					 "Base.Shorts_ShortDenim","Base.Shorts_ShortFormal","Base.Shorts_ShortSport","Base.Dungarees"},
 		},
+		Belt = {
+			items = {"Base.Belt2"},
+		},
 		Skirt = {
 			items = {"Base.Skirt_Long","Base.Skirt_Knees","Base.Skirt_Normal","Base.Skirt_Short","Base.Skirt_Mini"},
 		},
@@ -323,10 +329,10 @@ ClothingSelectionDefinitions.default = {
 		UnderwearExtra2 = {
 			items = {"Base.Garter"},
 		},
-		BellyButton = {
-			items = {"Base.BellyButton_DangleGold","Base.BellyButton_DangleGoldRuby","Base.BellyButton_DangleSilver","Base.BellyButton_DangleSilverDiamond","Base.BellyButton_RingGold",
-					 "Base.BellyButton_RingGoldDiamond","Base.BellyButton_RingGoldRuby","Base.BellyButton_RingSilver","Base.BellyButton_RingSilverAmethyst","Base.BellyButton_RingSilverDiamond",
-					"Base.BellyButton_RingSilverRuby","Base.BellyButton_StudGold","Base.BellyButton_StudGoldDiamond","Base.BellyButton_StudSilver","Base.BellyButton_StudSilverDiamond"},
-		},
+		-- BellyButton = {
+		-- 	items = {"Base.BellyButton_DangleGold","Base.BellyButton_DangleGoldRuby","Base.BellyButton_DangleSilver","Base.BellyButton_DangleSilverDiamond","Base.BellyButton_RingGold",
+		-- 			 "Base.BellyButton_RingGoldDiamond","Base.BellyButton_RingGoldRuby","Base.BellyButton_RingSilver","Base.BellyButton_RingSilverAmethyst","Base.BellyButton_RingSilverDiamond",
+		-- 			"Base.BellyButton_RingSilverRuby","Base.BellyButton_StudGold","Base.BellyButton_StudGoldDiamond","Base.BellyButton_StudSilver","Base.BellyButton_StudSilverDiamond"},
+		-- },
 	},
 }

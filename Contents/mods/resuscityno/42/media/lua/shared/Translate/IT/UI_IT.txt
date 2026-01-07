@@ -1,0 +1,2 @@
+UI_Resus_RevivePlayer = "Resuscita Giocatore"
+UI_Resus_GiveUp = "Arrendati"

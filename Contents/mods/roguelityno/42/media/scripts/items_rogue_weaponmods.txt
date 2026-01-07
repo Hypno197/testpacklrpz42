@@ -1,0 +1,18 @@
+module Rogue
+{
+    item ModKit_Improvised
+    {
+        ItemType = base:normal,
+        DisplayCategory = Tool,
+        Icon = Item_modkit_improv,
+        Weight = 0.2,
+    }
+
+    item ModKit_Special
+    {
+        ItemType = base:normal,
+        DisplayCategory = Tool,
+        Icon = Item_modkit_rare,
+        Weight = 0.2,
+    }
+}

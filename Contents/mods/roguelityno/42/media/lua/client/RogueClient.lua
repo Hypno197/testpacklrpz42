@@ -15,6 +15,7 @@ require "ISUI/ISImage"
 require "TimedActions/ISTimedActionQueue"
 require "RogueFullRestoreAction"
 require "RogueBogdanoDrinkAction"
+require "RogueWeaponModsClient"
 pcall(require, "ISUI/ISInventoryPane")
 require "ISUI/ISScrollingListBox"
 require "ISUI/ISComboBox"
@@ -34,10 +35,14 @@ Client._shopWorldMarkers = Client._shopWorldMarkers or {}
 Client._shopMarkerNextAtMs = Client._shopMarkerNextAtMs or 0
 Client._shopMarkerActive = Client._shopMarkerActive or false
 Client._shopMarkerStatus = Client._shopMarkerStatus or nil
+Client._shopMarkerLogAtMs = Client._shopMarkerLogAtMs or 0
 Client._buildId = Client._buildId or nil
+Client._panelPos = Client._panelPos or {}
 Client.SHOP_MARKER_TICK_MS = 1000
 Client.SHOP_MARKER_SIZE = 0.80
 Client.SHOP_MARKER_TEX = nil
+Client._outsideSoundActive = Client._outsideSoundActive or false
+Client._outsideSoundNextAtMs = Client._outsideSoundNextAtMs or 0
 Client.UI_PAD_X = 20
 Client.UI_PAD_Y = 20
 Client.BANNER_PAD_Y = 0
@@ -69,6 +74,9 @@ Client._panelPos = Client._panelPos or {}
 Client._hudZeroLogAtMs = Client._hudZeroLogAtMs or 0
 Client._overtimeLoopActive = Client._overtimeLoopActive or false
 Client._overtimeNextAtMs = Client._overtimeNextAtMs or 0
+Client._prepCountdownRound = Client._prepCountdownRound or nil
+Client._prepReadyActive = Client._prepReadyActive or false
+Client._prepReadyRound = Client._prepReadyRound or nil
 Client._miniMapPatched = Client._miniMapPatched or false
 Client._miniMapOpenedForRun = Client._miniMapOpenedForRun or false
 Client._arenaBorderMarkers = Client._arenaBorderMarkers or {}
@@ -133,18 +141,66 @@ end
 
 function Client.getItemIconTexture(itemId)
     if not itemId or itemId == "" then return nil end
+    local function tryTexture(iconName)
+        if not iconName or iconName == "" then return nil end
+        local tex = getTexture(iconName)
+        if tex then return tex end
+        tex = getTexture("media/ui/" .. iconName .. ".png")
+        if tex then return tex end
+        tex = getTexture("media/textures/" .. iconName .. ".png")
+        if tex then return tex end
+        tex = getTexture("media/textures/ui/" .. iconName .. ".png")
+        if tex then return tex end
+        return nil
+    end
+    local function resolveIcon(icon)
+        if not icon or icon == "" then return nil end
+        local itemName = icon
+        if not string.find(icon, "^Item_") then
+            itemName = "Item_" .. icon
+        end
+        return tryTexture(itemName) or tryTexture(icon)
+    end
+    local function resolveIconList(iconsForTexture)
+        if not iconsForTexture then return nil end
+        if type(iconsForTexture) == "string" then
+            local first = string.match(iconsForTexture, "([^;,%s]+)")
+            if first and first ~= "" then
+                return resolveIcon(first)
+            end
+            return nil
+        end
+        if type(iconsForTexture) == "table" then
+            local first = iconsForTexture[1]
+            if first and first ~= "" then
+                return resolveIcon(tostring(first))
+            end
+            return nil
+        end
+        if iconsForTexture.size and iconsForTexture.get then
+            local okSize, size = pcall(iconsForTexture.size, iconsForTexture)
+            if okSize and size and size > 0 then
+                local okGet, first = pcall(iconsForTexture.get, iconsForTexture, 0)
+                if okGet and first then
+                    return resolveIcon(tostring(first))
+                end
+            end
+        end
+        return nil
+    end
     if not InventoryItemFactory or not InventoryItemFactory.CreateItem then
         local sm = getScriptManager()
         if sm and sm.FindItem then
             local scriptItem = sm:FindItem(itemId)
             if scriptItem and scriptItem.getIcon then
                 local icon = scriptItem:getIcon()
-                if icon and icon ~= "" then
-                    local tex = getTexture("Item_" .. icon)
-                    if tex then return tex end
-                    tex = getTexture("media/ui/" .. "Item_" .. icon .. ".png")
-                    if tex then return tex end
-                    tex = getTexture("media/ui/" .. icon .. ".png")
+                local tex = resolveIcon(icon)
+                if tex then return tex end
+            end
+            if scriptItem and scriptItem.getIconsForTexture then
+                local okIcons, icons = pcall(scriptItem.getIconsForTexture, scriptItem)
+                if okIcons then
+                    local tex = resolveIconList(icons)
                     if tex then return tex end
                 end
             end
@@ -159,10 +215,13 @@ function Client.getItemIconTexture(itemId)
         end
         if item.getIcon then
             local icon = item:getIcon()
-            if icon and icon ~= "" then
-                local tex = getTexture("Item_" .. icon)
-                if tex then return tex end
-                tex = getTexture("media/ui/" .. icon .. ".png")
+            local tex = resolveIcon(icon)
+            if tex then return tex end
+        end
+        if item.getIconsForTexture then
+            local okIcons, icons = pcall(item.getIconsForTexture, item)
+            if okIcons then
+                local tex = resolveIconList(icons)
                 if tex then return tex end
             end
         end
@@ -251,6 +310,210 @@ function Client.getRewardLabel(choice)
         return tostring(entry.id or "Blessing")
     end
     return tostring(entry.id or rewardType)
+end
+
+function Client.getRewardTypeLabel(choice)
+    local entry = choice and (choice.entry or choice) or {}
+    local rewardType = tostring(entry.type or "item")
+    local map = {
+        currency = "UI_rogue_reward_type_currency",
+        item = "UI_rogue_reward_type_item",
+        armor = "UI_rogue_reward_type_item",
+        drug = "UI_rogue_reward_type_drug",
+        heal = "UI_rogue_reward_type_heal",
+        skill = "UI_rogue_reward_type_skill",
+        skills = "UI_rogue_reward_type_skills",
+        xpBoost = "UI_rogue_reward_type_xpboost",
+        trait = "UI_rogue_reward_type_trait",
+        blessing = "UI_rogue_reward_type_blessing",
+    }
+    local key = map[rewardType] or "UI_rogue_reward_type_item"
+    local label = T(key)
+    if label == key then
+        return string.upper(rewardType)
+    end
+    return label
+end
+
+local function setOptionIcon(option, texturePath)
+    if not option or not texturePath then return end
+    local tex = getTexture(texturePath)
+    if tex then
+        option.iconTexture = tex
+    end
+end
+
+local function getScriptItem(itemId)
+    if not itemId or itemId == "" then return nil end
+    local sm = getScriptManager and getScriptManager() or nil
+    if sm and sm.FindItem then
+        local ok, item = pcall(sm.FindItem, sm, itemId)
+        if ok then return item end
+    end
+    return nil
+end
+
+local function resolveWeaponSkillId(itemId)
+    local scriptItem = getScriptItem(itemId)
+    if not scriptItem or not scriptItem.getWeaponSkill then return nil end
+    local okSkill, perk = pcall(scriptItem.getWeaponSkill, scriptItem)
+    if not okSkill or not perk then return nil end
+    if type(perk) == "string" then
+        return perk
+    end
+    if perk.getId then
+        local okId, id = pcall(perk.getId, perk)
+        if okId and id then return tostring(id) end
+    end
+    if perk.getName then
+        local okName, name = pcall(perk.getName, perk)
+        if okName and name then return tostring(name) end
+    end
+    return nil
+end
+
+function Client.getRewardTypeCategory(choice)
+    local entry = choice and (choice.entry or choice) or {}
+    local rewardType = tostring(entry.type or "item")
+    if rewardType == "currency" or rewardType == "drug" or rewardType == "heal"
+        or rewardType == "skill" or rewardType == "skills" or rewardType == "xpBoost"
+        or rewardType == "trait" or rewardType == "blessing" or rewardType == "armor" then
+        return rewardType
+    end
+    if rewardType ~= "item" then
+        return "misc"
+    end
+
+    local itemId = entry.id
+    local scriptItem = getScriptItem(itemId)
+    if scriptItem then
+        if scriptItem.getBodyLocation then
+            local okLoc, loc = pcall(scriptItem.getBodyLocation, scriptItem)
+            if okLoc and loc and tostring(loc) ~= "" then
+                return "armor"
+            end
+        end
+        if scriptItem.getAmmoType then
+            local okAmmo, ammo = pcall(scriptItem.getAmmoType, scriptItem)
+            if okAmmo and ammo and tostring(ammo) ~= "" then
+                return "ammo"
+            end
+        end
+        if scriptItem.isRanged then
+            local okRange, ranged = pcall(scriptItem.isRanged, scriptItem)
+            if okRange and ranged == true then
+                return "firearm"
+            end
+        end
+    end
+
+    local skillId = resolveWeaponSkillId(itemId)
+    if skillId then
+        local map = {
+            LongBlade = "weapon_longblade",
+            Blunt = "weapon_blunt",
+            SmallBlade = "weapon_smallblade",
+            SmallBlunt = "weapon_smallblunt",
+            Axe = "weapon_axe",
+            Spear = "weapon_spear",
+            Aiming = "firearm",
+        }
+        return map[skillId] or "misc"
+    end
+    return "misc"
+end
+
+function Client.getRewardRarityIconTexture(rarity)
+    local cfg = Rogue.Config or {}
+    local map = cfg.REWARD_RARITY_ICON_TEX or {}
+    local path = map[rarity]
+    if not path then return nil end
+    return getTexture(path)
+end
+
+function Client.getRewardTypeIconTexture(choice)
+    local cfg = Rogue.Config or {}
+    local map = cfg.REWARD_TYPE_ICON_TEX or {}
+    local key = Client.getRewardTypeCategory(choice)
+    local path = map[key]
+    if not path then return nil end
+    return getTexture(path)
+end
+
+function Client.getRewardLines(choice)
+    local entry = choice and (choice.entry or choice) or {}
+    local rewardType = tostring(entry.type or "item")
+    if rewardType == "currency" then
+        local name = T("UI_rogue_reward_currency")
+        if name == "UI_rogue_reward_currency" then
+            name = "Currency"
+        end
+        local amt = tostring(entry.amount or entry.qty or 0)
+        return name, string.format("+%s", amt)
+    elseif rewardType == "item" or rewardType == "armor" or rewardType == "drug" or rewardType == "heal" then
+        local name = Client.getItemDisplayName(entry.id) or tostring(entry.id or "Item")
+        local qty = tonumber(entry.qty or entry.amount or 1) or 1
+        local qtyFmt = T("UI_rogue_reward_qty_fmt", qty)
+        if qtyFmt == "UI_rogue_reward_qty_fmt" then
+            qtyFmt = string.format("x%d", qty)
+        end
+        return name, qtyFmt
+    elseif rewardType == "skill" then
+        local perkId = entry.skill or entry.id
+        local label = Client.getPerkLabel(perkId) or tostring(perkId or "Skill")
+        local lv = tonumber(entry.levels or 1) or 1
+        local lvFmt = T("UI_rogue_reward_levels_fmt", lv)
+        if lvFmt == "UI_rogue_reward_levels_fmt" then
+            lvFmt = string.format("+%d", lv)
+        end
+        return label, lvFmt
+    elseif rewardType == "skills" then
+        local list = entry.skills
+        if type(list) == "table" and #list > 0 then
+            local parts = {}
+            for i = 1, #list do
+                local s = list[i]
+                local perkId = s and (s.skill or s.id) or nil
+                local levels = tonumber(s and s.levels or 0) or 0
+                if perkId and levels > 0 then
+                    local label = Client.getPerkLabel(perkId) or tostring(perkId or "Skill")
+                    parts[#parts + 1] = string.format("%s +%d", label, levels)
+                end
+            end
+            if #parts > 0 then
+                local name = T("UI_rogue_reward_skills")
+                if name == "UI_rogue_reward_skills" then
+                    name = "Skills"
+                end
+                return name, table.concat(parts, ", ")
+            end
+        end
+        return "Skills", nil
+    elseif rewardType == "xpBoost" then
+        local perkId = entry.skill or entry.id
+        local label = Client.getPerkLabel(perkId) or tostring(perkId or "Skill")
+        local mult = tonumber(entry.amount or entry.mult or 0) or 0
+        local rounds = tonumber(entry.durationRounds or 0) or 0
+        if rounds > 0 then
+            local fmt = T("UI_rogue_reward_xpboost_fmt", mult, rounds)
+            if fmt == "UI_rogue_reward_xpboost_fmt" then
+                fmt = string.format("EXP x%.2f per %dr", mult, rounds)
+            end
+            return label, fmt
+        end
+        return label, string.format("x%.2f", mult)
+    elseif rewardType == "trait" then
+        local traitId = entry.id
+        local label = Client.getTraitLabel(traitId) or tostring(traitId or "Trait")
+        local toggle = T("UI_rogue_reward_trait_toggle")
+        if toggle == "UI_rogue_reward_trait_toggle" then
+            toggle = "Toggle"
+        end
+        return label, toggle
+    elseif rewardType == "blessing" then
+        return tostring(entry.id or "Blessing"), nil
+    end
+    return tostring(entry.id or rewardType), nil
 end
 
 function Client.getRewardDesc(choice)
@@ -350,6 +613,8 @@ function Client.openRewardPanel(args)
     Client._rewardChoices = args.choices
     Client._rewardRoundId = args.roundId
     Client._rewardRunId = args.runId
+    Client._rewardRerollCost = tonumber(args.rerollCost or 0) or 0
+    Client._rewardRerollCount = tonumber(args.rerollCount or 0) or 0
 
     local w, h = 720, 310
     local x = (getCore():getScreenWidth() / 2) - (w / 2)
@@ -364,6 +629,7 @@ function Client.openRewardPanel(args)
 
     local tm = getTextManager()
     local textColor = Client.getUIColor("UI_COLOR_TEXT", { r = 0.95, g = 0.83, b = 0.15, a = 1 })
+    local buttonShadowColor = { r = 0, g = 0, b = 0, a = 1 }
     local function measureText(font, text)
         if tm and tm.MeasureStringX then
             return tm:MeasureStringX(font, text)
@@ -377,6 +643,57 @@ function Client.openRewardPanel(args)
             x = centerX - 40
         end
         return Client.addShadowLabel(parent, x, y, h, text, font, mainColor, shadowColor, 1, 1)
+    end
+    local function styleRewardButton(btn, label)
+        if not btn then return end
+        btn.title = ""
+        btn._rogueLabel = label
+        local safeText = textColor or { r = 0.95, g = 0.83, b = 0.15, a = 1 }
+        btn.textColor = safeText
+        btn.textColor2 = safeText
+        function btn:render()
+            ISButton.render(self)
+            if not self._rogueLabel and not self._rogueLabelLeft then return end
+            if self._rogueBgTex then
+                self:drawTextureScaled(self._rogueBgTex, 0, 0, self.width, self.height, 1)
+            end
+            local font = self.font or UIFont.Small
+            local tc = textColor or { r = 0.95, g = 0.83, b = 0.15, a = 1 }
+            local sc = buttonShadowColor or { r = 0, g = 0, b = 0, a = 1 }
+            local tr = (tc and tc.r) or 0.95
+            local tg = (tc and tc.g) or 0.83
+            local tb = (tc and tc.b) or 0.15
+            local ta = (tc and tc.a) or 1
+            local sr = (sc and sc.r) or 0
+            local sg = (sc and sc.g) or 0
+            local sb = (sc and sc.b) or 0
+            local sa = (sc and sc.a) or 1
+            local h = tm and tm:getFontHeight(font) or 12
+            local padBottom = tonumber(self._roguePadBottom or 0) or 0
+            local gap = 6
+            if self._rogueLabelLeft and self._rogueLabelRight and self._rogueIconTex then
+                local wl = tm and tm:MeasureStringX(font, self._rogueLabelLeft) or 0
+                local wr = tm and tm:MeasureStringX(font, self._rogueLabelRight) or 0
+                local iw = self._rogueIconSize or 16
+                local total = wl + gap + iw + gap + wr
+                local x = math.floor((self.width - total) / 2)
+                local y = math.floor((self.height - h - padBottom) / 2)
+                self:drawText(self._rogueLabelLeft, x + 1, y + 1, sr, sg, sb, sa)
+                self:drawText(self._rogueLabelLeft, x, y, tr, tg, tb, ta)
+                local ix = x + wl + gap
+                local iy = math.floor((self.height - iw) / 2)
+                self:drawTextureScaled(self._rogueIconTex, ix, iy, iw, iw, 1)
+                local rx = ix + iw + gap
+                self:drawText(self._rogueLabelRight, rx + 1, y + 1, sr, sg, sb, sa)
+                self:drawText(self._rogueLabelRight, rx, y, tr, tg, tb, ta)
+            else
+                local w = tm and tm:MeasureStringX(font, self._rogueLabel) or 0
+                local x = math.floor((self.width - w) / 2)
+                local y = math.floor((self.height - h - padBottom) / 2)
+                self:drawText(self._rogueLabel, x + 1, y + 1, sr, sg, sb, sa)
+                self:drawText(self._rogueLabel, x, y, tr, tg, tb, ta)
+            end
+        end
     end
 
     local titleText = T("UI_rogue_reward_title")
@@ -392,8 +709,10 @@ function Client.openRewardPanel(args)
     )
 
     local padding = 12
-    local slotY = 44
-    local slotH = h - slotY - 12
+    local slotY = 44 + 10
+    local rerollRowH = 20
+    local rerollRowY = h - rerollRowH - 10
+    local slotH = math.max(60, rerollRowY - slotY - 6)
     local slotW = math.floor((w - padding * 4) / 3)
     for i = 1, #args.choices do
         local choice = args.choices[i]
@@ -412,41 +731,91 @@ function Client.openRewardPanel(args)
         if rarity == "epic" or rarity == "legendary" then
             shadowColor = { r = 0.85, g = 0.1, b = 0.1, a = 1 }
         end
-        addCenteredShadowText(
-            slot,
-            slotW / 2,
-            28,
-            18,
-            string.upper(rarity),
-            Client.getUIFont("small"),
-            textColor,
-            shadowColor
-        )
+        local iconSize = 24
+        local iconInset = 25
+        local rarityTex = Client.getRewardRarityIconTexture(rarity)
+        if rarityTex then
+            local img = ISImage:new(6 + iconInset, 26, iconSize, iconSize, rarityTex)
+            img:initialise()
+            slot:addChild(img)
+        else
+            addCenteredShadowText(
+                slot,
+                slotW / 2,
+                24,
+                18,
+                string.upper(rarity),
+                Client.getUIFont("small"),
+                textColor,
+                shadowColor
+            )
+        end
 
-        local text = Client.getRewardLabel(choice)
+        local typeTex = Client.getRewardTypeIconTexture(choice)
+        if typeTex then
+            local img = ISImage:new(slotW - iconSize - 6 - iconInset, 26, iconSize, iconSize, typeTex)
+            img:initialise()
+            slot:addChild(img)
+        else
+            local typeLabel = Client.getRewardTypeLabel(choice)
+            addCenteredShadowText(
+                slot,
+                slotW / 2,
+                42,
+                16,
+                typeLabel,
+                Client.getUIFont("small"),
+                textColor,
+                shadowColor
+            )
+        end
+
         local icon = Client.getRewardIcon(choice)
         if icon then
-            local img = ISImage:new((slotW - 64) / 2, 52, 64, 64, icon)
+            local iconBoxW, iconBoxH = 64, 64
+            local texW = icon.getWidth and icon:getWidth() or iconBoxW
+            local texH = icon.getHeight and icon:getHeight() or iconBoxH
+            local iconW = math.min(iconBoxW, texW)
+            local iconH = math.min(iconBoxH, texH)
+            local iconX = math.floor((slotW - iconW) / 2)
+            local iconY = 60 + math.floor((iconBoxH - iconH) / 2)
+            local img = ISImage:new(iconX, iconY, iconW, iconH, icon)
             img:initialise()
             slot:addChild(img)
         end
-        addCenteredShadowText(
-            slot,
-            slotW / 2,
-            124,
-            18,
-            text,
-            Client.getUIFont("medium"),
-            textColor,
-            shadowColor
-        )
+
+        local nameText, valueText = Client.getRewardLines(choice)
+        if nameText and nameText ~= "" then
+            addCenteredShadowText(
+                slot,
+                slotW / 2,
+                136,
+                18,
+                nameText,
+                Client.getUIFont("medium"),
+                textColor,
+                shadowColor
+            )
+        end
+        if valueText and valueText ~= "" then
+            addCenteredShadowText(
+                slot,
+                slotW / 2,
+                156,
+                18,
+                valueText,
+                Client.getUIFont("small"),
+                textColor,
+                shadowColor
+            )
+        end
 
         local short = Client.getRewardDesc(choice)
         if short and short ~= "" then
             addCenteredShadowText(
                 slot,
                 slotW / 2,
-                146,
+                176,
                 18,
                 short,
                 Client.getUIFont("small"),
@@ -461,11 +830,17 @@ function Client.openRewardPanel(args)
                 runId = Client._rewardRunId,
                 pickIndex = i,
             })
-            panel:setVisible(false)
-            panel:removeFromUIManager()
+            if panel then
+                panel:setVisible(false)
+                panel:removeFromUIManager()
+            end
             Client._rewardPanel = nil
         end
-        local btn = ISButton:new(10, slotH - 40, slotW - 20, 28, T("UI_rogue_reward_pick"), slot, pick)
+        local baseBtnY = slotH - 40
+        if rarity == "legendary" then
+            baseBtnY = baseBtnY - 8
+        end
+        local btn = ISButton:new(10, baseBtnY, slotW - 20, 28, T("UI_rogue_reward_pick"), slot, pick)
         btn:initialise()
         btn.backgroundColor = { r = 0, g = 0, b = 0, a = 0 }
         btn.borderColor = { r = 0, g = 0, b = 0, a = 0 }
@@ -475,7 +850,50 @@ function Client.openRewardPanel(args)
         if btn.setDisplayBorder then
             pcall(btn.setDisplayBorder, btn, false)
         end
+        if rarity == "legendary" then
+            btn._roguePadBottom = 15
+        end
+        styleRewardButton(btn, T("UI_rogue_reward_pick"))
         slot:addChild(btn)
+    end
+
+    local rerollCost = Client._rewardRerollCost or 0
+    if rerollCost ~= nil and rerollCost >= 0 then
+        local labelLeft = "RITENTA"
+        local labelRight = tostring(rerollCost)
+        for i = 1, #args.choices do
+            local slotX = padding + (i - 1) * (slotW + padding)
+            local wl = tm and tm:MeasureStringX(UIFont.Small, labelLeft) or 0
+            local wr = tm and tm:MeasureStringX(UIFont.Small, labelRight) or 0
+            local iw = 16
+            local gap = 6
+            local btnW = math.min(slotW, wl + gap + iw + gap + wr + 20)
+            local btnX = slotX + math.floor((slotW - btnW) / 2)
+            local function reroll()
+                sendClientCommand("Rogue", "roundRewardReroll", {
+                    roundId = Client._rewardRoundId,
+                    runId = Client._rewardRunId,
+                    pickIndex = i,
+                })
+            end
+            local btn = ISButton:new(btnX, rerollRowY, btnW, rerollRowH, "", panel, reroll)
+            btn:initialise()
+            btn.backgroundColor = { r = 0, g = 0, b = 0, a = 0 }
+            btn.borderColor = { r = 0, g = 0, b = 0, a = 0 }
+            if btn.setDisplayBackground then
+                pcall(btn.setDisplayBackground, btn, false)
+            end
+            if btn.setDisplayBorder then
+                pcall(btn.setDisplayBorder, btn, false)
+            end
+            btn._rogueLabelLeft = labelLeft
+            btn._rogueLabelRight = labelRight
+            btn._rogueIconTex = getTexture("media/textures/ui/wallet_icon.png")
+            btn._rogueIconSize = 16
+            btn._rogueBgTex = getTexture("media/textures/ui/rogue_reroll_bg.png")
+            styleRewardButton(btn, labelLeft)
+            panel:addChild(btn)
+        end
     end
 
     Client._rewardPanel = panel
@@ -572,8 +990,12 @@ function Client.playUISound(eventId, category)
                 return soundId
             end
         end
-        sm:playUISound(soundId)
-        Client._soundRefs[eventId] = { soundId = soundId, follow = false }
+        local ok, ref = pcall(sm.playUISound, sm, soundId)
+        if ok and ref then
+            Client._soundRefs[eventId] = { soundId = soundId, ref = ref, follow = false }
+        else
+            Client._soundRefs[eventId] = { soundId = soundId, follow = false }
+        end
     end
     return soundId
 end
@@ -592,8 +1014,12 @@ function Client.stopUISound(eventId)
         end
     else
         local sm = getSoundManager and getSoundManager() or nil
-        if sm and sm.stopUISound and entry.soundId then
-            pcall(sm.stopUISound, sm, entry.soundId)
+        if sm and sm.stopUISound then
+            if entry.ref then
+                pcall(sm.stopUISound, sm, entry.ref)
+            elseif entry.soundId and type(entry.soundId) == "number" then
+                pcall(sm.stopUISound, sm, entry.soundId)
+            end
         end
     end
     Client._soundRefs[eventId] = nil
@@ -629,6 +1055,17 @@ function Client.setShadowLabelText(entry, text)
     end
 end
 
+function Client.setShadowLabelVisible(entry, visible)
+    if not entry then return end
+    local show = visible and true or false
+    if entry.label and entry.label.setVisible then
+        entry.label:setVisible(show)
+    end
+    if entry.shadow and entry.shadow.setVisible then
+        entry.shadow:setVisible(show)
+    end
+end
+
 local function clampValue(value, minValue, maxValue)
     if value < minValue then return minValue end
     if value > maxValue then return maxValue end
@@ -648,6 +1085,66 @@ function Client.getArenaRect()
     if not cfg or not cfg.ZONES or not cfg.isRectValid then return nil end
     if not cfg.isRectValid(cfg.ZONES.ARENA) then return nil end
     return cfg.ZONES.ARENA
+end
+
+function Client.findLastZombieInArena()
+    local rect = Client.getArenaRect()
+    if not rect then return nil end
+    local cell = getCell()
+    if not cell or not cell.getZombieList then return nil end
+    local list = cell:getZombieList()
+    if not list then return nil end
+    local player = getPlayer()
+    local px = player and player.getX and player:getX() or nil
+    local py = player and player.getY and player:getY() or nil
+    local pz = player and player.getZ and player:getZ() or nil
+    local count = 0
+    local nearest = nil
+    local nearestDist = nil
+    local rz = rect.z or 0
+    for i = 0, list:size() - 1 do
+        local z = list:get(i)
+        if z and not z:isDead() then
+            local zx, zy, zz = z:getX(), z:getY(), z:getZ()
+            if zz == rz and zx >= rect.x1 and zx <= rect.x2 and zy >= rect.y1 and zy <= rect.y2 then
+                count = count + 1
+                if px and py and pz and pz == rz then
+                    local dx = zx - px
+                    local dy = zy - py
+                    local dist = (dx * dx) + (dy * dy)
+                    if not nearestDist or dist < nearestDist then
+                        nearestDist = dist
+                        nearest = z
+                    end
+                elseif not nearest then
+                    nearest = z
+                end
+            end
+        end
+    end
+    return count, nearest
+end
+
+function Client.updateLastZombieMinimap()
+    local now = getTimestampMs()
+    if now < (Client._lastZombieScanNextAtMs or 0) then return end
+    local cfg = Rogue.Config or {}
+    local interval = tonumber(cfg.MINIMAP_LAST_ZOMBIE_INTERVAL_MS) or 1000
+    Client._lastZombieScanNextAtMs = now + math.max(200, interval)
+    if Client._lastStatus ~= "WAVE" then
+        Client._lastZombieMarker = nil
+        Client._lastZombieCount = nil
+        return
+    end
+    local threshold = tonumber(cfg.MINIMAP_LAST_ZOMBIE_THRESHOLD) or 10
+    local count, nearest = Client.findLastZombieInArena()
+    if not count or count > threshold or not nearest then
+        Client._lastZombieMarker = nil
+        Client._lastZombieCount = nil
+        return
+    end
+    Client._lastZombieMarker = { x = nearest:getX(), y = nearest:getY(), z = nearest:getZ() }
+    Client._lastZombieCount = count
 end
 
 function Client.drawArenaMinimapOverlay(mm)
@@ -674,6 +1171,16 @@ function Client.drawArenaMinimapOverlay(mm)
         map.javaObject:DrawLine(nil, x2, y2, x3, y3, 1, r, g, b, a)
         map.javaObject:DrawLine(nil, x3, y3, x4, y4, 1, r, g, b, a)
         map.javaObject:DrawLine(nil, x4, y4, x1, y1, 1, r, g, b, a)
+    end
+    local marker = Client._lastZombieMarker
+    if marker then
+        local mx = api:worldToUIX(marker.x, marker.y)
+        local my = api:worldToUIY(marker.x, marker.y)
+        if map.drawRect then
+            map:drawRect(mx - 2, my - 2, 4, 4, 1, 1, 0.1, 0.1)
+        elseif map.javaObject and map.javaObject.DrawRect then
+            map.javaObject:DrawRect(nil, mx - 2, my - 2, 4, 4, 1, 1, 0.1, 0.1)
+        end
     end
     if map.clearStencilRect then
         map:clearStencilRect()
@@ -707,7 +1214,10 @@ function Client.createArenaBorderMarkers(rect, side, centerX, centerY)
     local spacingTiles = math.max(1, math.floor(spacing))
     local alpha = tonumber(cfg.ARENA_BORDER_MARKER_ALPHA) or Client.ARENA_BORDER_MARKER_ALPHA or 0.5
     local size = tonumber(cfg.ARENA_BORDER_MARKER_SIZE) or Client.ARENA_BORDER_MARKER_SIZE or Client.SHOP_MARKER_SIZE or 0.65
-    local r, g, b = 0.6, 0, 0
+    local color = cfg.ARENA_BORDER_MARKER_COLOR or {}
+    local r = tonumber(color.r) or 0.6
+    local g = tonumber(color.g) or 0
+    local b = tonumber(color.b) or 0
 
     local halfSpan = (count - 1) * spacingTiles * 0.5
     local used = {}
@@ -917,7 +1427,7 @@ function Client.ensureHud()
     if Client._hud and Client._hud.panel then
         return Client._hud
     end
-    local w, h = 420, 44
+    local w, h = 420, 60
     local margin = 14
     local x = getCore():getScreenWidth() - w - margin
     local y = 36
@@ -947,8 +1457,47 @@ function Client.ensureHud()
         1
     )
 
-    Client._hud = { panel = panel, label = entry, text = "" }
-    Client.addDragOverlay(panel, "hud")
+    local readyLabel = Client.addShadowLabel(
+        panel,
+        8 + Client.UI_PAD_X,
+        24 + Client.UI_PAD_Y - 20,
+        16,
+        "",
+        Client.getUIFont("small"),
+        textColor,
+        shadowColor,
+        1,
+        1
+    )
+    local btnW, btnH = 90, 20
+    local btnX = w - btnW - 10
+    local btnY = 22 + Client.UI_PAD_Y - 20
+    local btnReady = ISButton:new(btnX, btnY, btnW, btnH, T("UI_rogue_prep_ready"), panel, function()
+        Client.togglePrepReady()
+    end)
+    btnReady:initialise()
+    panel:addChild(btnReady)
+    btnReady:setVisible(false)
+    if readyLabel and readyLabel.label then
+        readyLabel.label:setVisible(false)
+    end
+    if readyLabel and readyLabel.shadow then
+        readyLabel.shadow:setVisible(false)
+    end
+
+    Client._hud = { panel = panel, label = entry, readyLabel = readyLabel, readyBtn = btnReady, text = "" }
+    do
+        local drag = ISPanel:new(0, 0, panel.width, 18)
+        drag:initialise()
+        drag.backgroundColor = { r = 0, g = 0, b = 0, a = 0 }
+        drag.borderColor = { r = 0, g = 0, b = 0, a = 0 }
+        panel:addChild(drag)
+        if drag.bringToTop then
+            drag:bringToTop()
+        end
+        Client.enablePanelDrag(panel, "hud", drag)
+        panel._dragOverlay = drag
+    end
     return Client._hud
 end
 
@@ -1150,6 +1699,9 @@ function Client.enablePanelDrag(panel, key, handle)
         end
         if key then
             Client._panelPos[key] = { x = panel:getX(), y = panel:getY() }
+            if Client.savePanelPositions then
+                Client.savePanelPositions()
+            end
         end
         return true
     end
@@ -1169,6 +1721,40 @@ function Client.addDragOverlay(panel, key)
     end
     Client.enablePanelDrag(panel, key, drag)
     panel._dragOverlay = drag
+end
+
+function Client.loadPanelPositions()
+    if not getFileReader then return end
+    local reader = getFileReader("roguelityno_ui_positions.txt", true)
+    if not reader then return end
+    local pos = {}
+    local line = reader:readLine()
+    while line do
+        local key, x, y = line:match("^([%w_]+)%s*=%s*(-?%d+)%s*,%s*(-?%d+)%s*$")
+        if key and x and y then
+            pos[key] = { x = tonumber(x), y = tonumber(y) }
+        end
+        line = reader:readLine()
+    end
+    reader:close()
+    Client._panelPos = pos
+end
+
+function Client.savePanelPositions()
+    if not getFileWriter then return end
+    local writer = getFileWriter("roguelityno_ui_positions.txt", false, false)
+    if not writer then return end
+    for key, pos in pairs(Client._panelPos or {}) do
+        if pos and pos.x and pos.y then
+            writer:write(string.format("%s=%d,%d\n", tostring(key), math.floor(pos.x), math.floor(pos.y)))
+        end
+    end
+    writer:close()
+end
+
+if not Client._panelPosLoaded then
+    Client._panelPosLoaded = true
+    Client.loadPanelPositions()
 end
 
 function Client.applyScorePanel(args)
@@ -1257,16 +1843,44 @@ function Client.findShopCategory(worldobjects)
     if not worldobjects then return nil end
     if Client._shopObjects then
         local entries = Client._shopObjects.entries or {}
+        local baseSquare = nil
         for i = 1, #worldobjects do
             local obj = worldobjects[i]
             local spr = Client.getSpriteName(obj)
             local square = Client.getObjectSquare(obj)
+            if square and not baseSquare then
+                baseSquare = square
+            end
             local key = Client.getSquareKey(square)
             if spr and key then
                 for j = 1, #entries do
                     local data = entries[j]
                     if data and data.key == key and (not data.sprite or data.sprite == spr) then
                         return data.category, data
+                    end
+                end
+            end
+        end
+        if baseSquare and #entries > 0 then
+            local radius = 1
+            if Rogue and Rogue.Config and Rogue.Config.SHOP_INTERACT_RADIUS then
+                radius = math.max(0, math.floor(tonumber(Rogue.Config.SHOP_INTERACT_RADIUS) or radius))
+            end
+            if radius > 0 then
+                local cell = getCell()
+                local bx, by, bz = baseSquare:getX(), baseSquare:getY(), baseSquare:getZ()
+                for dx = -radius, radius do
+                    for dy = -radius, radius do
+                        local sq = cell and cell:getGridSquare(bx + dx, by + dy, bz) or nil
+                        local key = Client.getSquareKey(sq)
+                        if key then
+                            for j = 1, #entries do
+                                local data = entries[j]
+                                if data and data.key == key then
+                                    return data.category, data
+                                end
+                            end
+                        end
                     end
                 end
             end
@@ -1296,6 +1910,101 @@ function Client.getCategoryLabel(category)
         return T(label)
     end
     return label or tostring(category)
+end
+
+function Client.getShopSubcategories(category)
+    local map = Rogue.Config and Rogue.Config.SHOP_SUBCATEGORIES or nil
+    local list = map and map[category] or nil
+    if list and #list > 0 then
+        return list
+    end
+    return nil
+end
+
+function Client.getShopSubcatLabel(entry)
+    if not entry then return "" end
+    if entry.labelKey and entry.labelKey ~= "" then
+        return T(entry.labelKey)
+    end
+    return entry.label or entry.id or ""
+end
+
+function Client.getShopSubcatState()
+    local player = getPlayer and getPlayer() or (getSpecificPlayer and getSpecificPlayer(0) or nil)
+    if not player or not player.getModData then return nil end
+    local md = player:getModData()
+    md.RogueShopSubcat = md.RogueShopSubcat or {}
+    return md.RogueShopSubcat
+end
+
+function Client.getSelectedShopSubcat(category, subcats)
+    if not subcats or #subcats == 0 then return nil end
+    local md = Client.getShopSubcatState()
+    local saved = md and md[category] or nil
+    if saved then
+        for i = 1, #subcats do
+            local entry = subcats[i]
+            if entry and entry.id == saved then
+                return saved
+            end
+        end
+    end
+    return subcats[1].id
+end
+
+function Client.setSelectedShopSubcat(category, subcatId)
+    local md = Client.getShopSubcatState()
+    if not md then return end
+    md[category] = subcatId
+end
+
+function Client.filterShopItems(items, subcatId)
+    if not items then return {} end
+    if not subcatId or subcatId == "all" then
+        return items
+    end
+    local filtered = {}
+    for i = 1, #items do
+        local entry = items[i]
+        if entry and entry.subcat == subcatId then
+            table.insert(filtered, entry)
+        end
+    end
+    return filtered
+end
+
+function Client.populateShopList(list, category, items, subcatId, minRows)
+    if not list then return end
+    if list.clear then
+        list:clear()
+    else
+        list.items = {}
+    end
+    list.selected = 0
+    local filtered = Client.filterShopItems(items, subcatId)
+    for i = 1, #filtered do
+        local entry = filtered[i]
+        local id = entry.id or "unknown"
+        local qty = entry.qty or 1
+        local price = tonumber(entry.price) or 0
+        local displayName = Client.getItemDisplayName(id) or id
+        local line = displayName
+        if (tonumber(qty) or 0) > 1 then
+            line = string.format("%s x%d", displayName, qty)
+        end
+        local icon = Client.getItemIconTexture(id)
+        local priceText = string.format("%.2f", tonumber(price) or 0)
+        local tooltip = Client.getStockTooltip(category, id)
+        list:addItem(line, {
+            id = id,
+            qty = qty,
+            price = price,
+            priceText = priceText,
+            line = line,
+            icon = icon,
+            isPlaceholder = false,
+        }, tooltip)
+    end
 end
 
 function Client.getTraitLabel(traitId)
@@ -1401,19 +2110,44 @@ function Client.buildTooltip(build)
         end
         if #list > 0 then
             table.sort(list)
-            table.insert(parts, T("UI_rogue_build_skills") .. ": " .. table.concat(list, " "))
+            table.insert(parts, T("UI_rogue_build_skills") .. ": " .. table.concat(list, ", "))
+        end
+    end
+    if build.startingStats then
+        local list = {}
+        for perkId, level in pairs(build.startingStats) do
+            local icon = Client.getSkillIconTag(perkId)
+            if icon and level then
+                table.insert(list, string.format("%s %d", icon, tonumber(level) or 0))
+            else
+                local label = Client.getPerkLabel(perkId)
+                if label and level then
+                    table.insert(list, string.format("%s %d", label, tonumber(level) or 0))
+                end
+            end
+        end
+        if #list > 0 then
+            table.sort(list)
+            table.insert(parts, T("UI_rogue_build_stats") .. ": " .. table.concat(list, ", "))
         end
     end
     if build.xpBoosts then
+        local function formatMult(value)
+            local n = tonumber(value) or 0
+            if math.floor(n) == n then
+                return string.format("x%d", n)
+            end
+            return string.format("x%.2f", n)
+        end
         local list = {}
         for perkId, level in pairs(build.xpBoosts) do
             local icon = Client.getSkillIconTag(perkId)
             if icon and level then
-                table.insert(list, string.format("%s +%d%%", icon, tonumber(level) or 0))
+                table.insert(list, string.format("%s %s", icon, formatMult(level)))
             else
                 local label = Client.getPerkLabel(perkId)
                 if label and level then
-                    table.insert(list, string.format("%s +%d%%", label, tonumber(level) or 0))
+                    table.insert(list, string.format("%s %s", label, formatMult(level)))
                 end
             end
         end
@@ -1439,7 +2173,7 @@ function Client.buildTooltip(build)
             end
         end
         if #list > 0 then
-            table.insert(parts, T("UI_rogue_build_loadout") .. ": " .. table.concat(list, " "))
+            table.insert(parts, T("UI_rogue_build_loadout") .. ": " .. table.concat(list, ", "))
         end
     end
     return #parts > 0 and table.concat(parts, "\n") or nil
@@ -1495,7 +2229,9 @@ function Client.openShopPanel(player, category)
     end
 
     local pad = (Rogue.Config and Rogue.Config.UI_SHOP_PAD) or 12
-    local minRows = (Rogue.Config and Rogue.Config.SHOP_UI_MIN_ROWS) or 10
+    local subcats = Client.getShopSubcategories(category)
+    local selectedSubcatId = Client.getSelectedShopSubcat(category, subcats)
+    local subcatRowH = (subcats and 28) or 0
     local extraLeft = 60
     local extraTop = 20
     local extraRight = 84
@@ -1514,7 +2250,6 @@ function Client.openShopPanel(player, category)
     local footerH = 30
     local buttonW = 80
     local buttonH = 26
-    local rows = math.max(#items, minRows)
     local w, h = 576, 512
     local x = (getCore():getScreenWidth() / 2) - (w / 2)
     local y = (getCore():getScreenHeight() / 2) - (h / 2)
@@ -1594,7 +2329,7 @@ function Client.openShopPanel(player, category)
     panel._walletLabel = walletEntry
 
     local listX = pad + extraLeft + Client.UI_PAD_X - 6
-    local listY = contentTop + headerH
+    local listY = contentTop + headerH + subcatRowH
     local listW = w - (pad * 2) - extraLeft - extraRight
     local listH = h - listY - (pad + footerH)
     local list = ISScrollingListBox:new(listX, listY, listW, listH)
@@ -1659,8 +2394,26 @@ function Client.openShopPanel(player, category)
         local btnH = self._buttonH or 26
         local btnX = self.width - btnW - 6
         local btnY = y + math.floor((rowHgt - btnH) / 2)
-        self:drawRect(btnX, btnY, btnW, btnH, 0.2, 0, 0, 0)
-        self:drawRectBorder(btnX, btnY, btnW, btnH, 0.6, 1, 0.9, 0.2)
+        local hover = false
+        if getMouseX and getMouseY then
+            local mx = getMouseX()
+            local my = getMouseY()
+            if mx and my then
+                local ax = (self.getAbsoluteX and self:getAbsoluteX()) or (self.parent and self.parent:getAbsoluteX() or 0) + (self.x or 0)
+                local ay = (self.getAbsoluteY and self:getAbsoluteY()) or (self.parent and self.parent:getAbsoluteY() or 0) + (self.y or 0)
+                local rx = mx - ax
+                local ry = my - ay
+                if rx >= btnX and rx <= (btnX + btnW) and ry >= btnY and ry <= (btnY + btnH) then
+                    hover = true
+                end
+            end
+        end
+        local fill = hover and 0.35 or 0.2
+        local br = hover and 1.0 or 1.0
+        local bg = hover and 0.95 or 0.9
+        local bb = hover and 0.35 or 0.2
+        self:drawRect(btnX, btnY, btnW, btnH, fill, 0, 0, 0)
+        self:drawRectBorder(btnX, btnY, btnW, btnH, 0.7, br, bg, bb)
 
         local priceText = data.priceText or ""
         local textX = btnX + 24
@@ -1711,33 +2464,51 @@ function Client.openShopPanel(player, category)
         ISScrollingListBox.onMouseDown(self, x, y)
     end
 
-    for i = 1, rows do
-        local entry = items[i]
-        local isPlaceholder = entry == nil
-        local id = isPlaceholder and "--" or (entry.id or "unknown")
-        local qty = isPlaceholder and 0 or (entry.qty or 1)
-        local price = isPlaceholder and 0 or (tonumber(entry.price) or 0)
-        local displayName = Client.getItemDisplayName(id) or id
-        local line = "--"
-        if not isPlaceholder then
-            line = displayName
-            if (tonumber(qty) or 0) > 1 then
-                line = string.format("%s x%d", displayName, qty)
+    if subcats then
+        local subcatY = contentTop + headerH - 2
+        local subcatX = listX
+        local subcatPad = 6
+        local btnH = 22
+        local font = Client.getUIFont("small")
+        local accent = Client.getUIColor("UI_COLOR_BORDER", { r = 0.95, g = 0.83, b = 0.15, a = 1 })
+        local function applySubcatStyle(btn, active)
+            if active then
+                btn.backgroundColor = { r = 0.08, g = 0.06, b = 0.02, a = 0.7 }
+                btn.borderColor = { r = accent.r, g = accent.g, b = accent.b, a = 0.9 }
+                btn.textColor = Client.getUIColor("UI_COLOR_TEXT", { r = 0.95, g = 0.83, b = 0.15, a = 1 })
+            else
+                btn.backgroundColor = { r = 0, g = 0, b = 0, a = 0.3 }
+                btn.borderColor = { r = 0.4, g = 0.35, b = 0.1, a = 0.5 }
+                btn.textColor = Client.getUIColor("UI_COLOR_TEXT", { r = 0.85, g = 0.75, b = 0.25, a = 0.9 })
             end
         end
-        local icon = (not isPlaceholder) and Client.getItemIconTexture(id) or nil
-        local priceText = string.format("%.2f", tonumber(price) or 0)
-        local tooltip = isPlaceholder and "Placeholder" or Client.getStockTooltip(category, id)
-        list:addItem(line, {
-            id = id,
-            qty = qty,
-            price = price,
-            priceText = priceText,
-            line = line,
-            icon = icon,
-            isPlaceholder = isPlaceholder,
-        }, tooltip)
+
+        panel._subcatButtons = {}
+        for i = 1, #subcats do
+            local entry = subcats[i]
+            local label = Client.getShopSubcatLabel(entry)
+            local tw = getTextManager() and getTextManager():MeasureStringX(font, label) or (string.len(label) * 6)
+            local bw = math.max(40, tw + 16)
+            local btn = ISButton:new(subcatX, subcatY, bw, btnH, label, panel, function()
+                selectedSubcatId = entry.id
+                Client.setSelectedShopSubcat(category, selectedSubcatId)
+        Client.populateShopList(list, category, items, selectedSubcatId, 0)
+                for j = 1, #panel._subcatButtons do
+                    local b = panel._subcatButtons[j]
+                    applySubcatStyle(b, b._subcatId == selectedSubcatId)
+                end
+                Client.updateShopTooltips(panel)
+            end)
+            btn:initialise()
+            btn._subcatId = entry.id
+            applySubcatStyle(btn, entry.id == selectedSubcatId)
+            panel:addChild(btn)
+            table.insert(panel._subcatButtons, btn)
+            subcatX = subcatX + bw + subcatPad
+        end
     end
+
+    Client.populateShopList(list, category, items, selectedSubcatId, 0)
     panel:addChild(list)
     panel._itemList = list
     panel._category = category
@@ -1994,17 +2765,34 @@ function Client.getFirstSpriteObject(worldobjects)
     return nil
 end
 
+function Client.getShopCategorySprite(category)
+    local map = Rogue.Config and Rogue.Config.SHOP_SPRITES or {}
+    local list = map[category] or nil
+    if not list or #list == 0 then return nil end
+    for i = 1, #list do
+        local spr = list[i]
+        if spr and spr ~= "" then
+            if not getSprite or getSprite(spr) then
+                return spr
+            end
+        end
+    end
+    return nil
+end
+
 function Client.setShopForCategory(worldobjects, category)
+    local desiredSprite = Client.getShopCategorySprite(category)
     local obj, spr = Client.getFirstSpriteObject(worldobjects)
-    if not obj or not spr then
+    local sprite = desiredSprite or spr
+    if not sprite then
         Client.showMessage("No sprite object found on this tile.")
         return
     end
-    local square = Client.getObjectSquare(obj)
+    local square = obj and Client.getObjectSquare(obj) or nil
     local key = Client.getSquareKey(square)
     sendClientCommand("Rogue", "setShop", {
         category = category,
-        sprite = spr,
+        sprite = sprite,
         key = key,
     })
 end
@@ -2043,17 +2831,19 @@ function Client.promptShopForCategory(worldobjects, category)
 
     local function onOk()
         local name = entry:getText() or ""
+        local desiredSprite = Client.getShopCategorySprite(category)
         local obj, spr = Client.getFirstSpriteObject(worldobjects)
-        if not obj or not spr then
+        local sprite = desiredSprite or spr
+        if not sprite then
             Client.showMessage("No sprite object found on this tile.")
             closePanel()
             return
         end
-        local square = Client.getObjectSquare(obj)
+        local square = obj and Client.getObjectSquare(obj) or nil
         local key = Client.getSquareKey(square)
         sendClientCommand("Rogue", "setShop", {
             category = category,
-            sprite = spr,
+            sprite = sprite,
             key = key,
             name = name,
         })
@@ -2207,6 +2997,7 @@ end
 function Client.updateHud(state, args)
     local hud = Client.ensureHud()
     local status = state or "IDLE"
+    local prevStatus = Client._lastStatus
     local roundIndex = args and args.roundIndex or 0
     local elapsedSec = args and args.elapsedSec or 0
     local newElapsed = tonumber(elapsedSec) or 0
@@ -2228,10 +3019,38 @@ function Client.updateHud(state, args)
     Client._lastHudRound = roundIndex
     Client._lastHudElapsed = newElapsed
     Client._lastStatus = status
+    if prevStatus and prevStatus ~= status and status == "PREP" then
+        if Client._prepReadyActive then
+            Client.setPrepReady(false)
+        end
+    end
     if status == "IDLE" then
         hud.panel:setVisible(false)
         Client._miniMapOpenedForRun = false
         return
+    end
+    if status ~= "PREP" and status ~= "LOBBY" then
+        Client._prepReadyActive = false
+        Client._prepReadyRound = nil
+    elseif Client._prepReadyRound ~= roundIndex then
+        Client._prepReadyRound = roundIndex
+        Client._prepReadyActive = false
+    end
+    if status ~= "PREP" then
+        Client._prepCountdownRound = nil
+    else
+        local cfg = Rogue.Config or {}
+        local prepSeconds = tonumber(cfg.PREP_SECONDS) or 0
+        local threshold = tonumber(cfg.PREP_COUNTDOWN_SECONDS) or 20.6
+        if prepSeconds > 0 then
+            local remaining = prepSeconds - newElapsed
+            if remaining <= threshold and remaining > 0 then
+                if Client._prepCountdownRound ~= roundIndex then
+                    Client._prepCountdownRound = roundIndex
+                    Client.playUISound("prep_countdown")
+                end
+            end
+        end
     end
     local overtimeHud = status == "WAVE" and Client._overtimeLoopActive
     if hud.label and hud.label.label then
@@ -2262,24 +3081,41 @@ function Client.updateHud(state, args)
     local statusLabel = Client.getStatusLabel(status)
     local text = ""
     if status == "WAVE" and overtimeHud then
-        text = T("UI_rogue_hud_overtime_death")
+        text = string.format("%s | %s %d | %s: %d/%d",
+            T("UI_rogue_hud_overtime_death"),
+            T("UI_rogue_hud_round"),
+            tonumber(args.roundIndex or 0),
+            T("UI_rogue_hud_kills"),
+            tonumber(args.kills or 0),
+            tonumber(args.killTarget or 0)
+        )
     elseif status == "WAVE" then
-        text = string.format("%s | %s | %s | %s: %d/%d",
+        text = string.format("%s | %s | %s %d | %s | %s: %d/%d",
             tostring(diffLabel),
             statusLabel,
+            T("UI_rogue_hud_round"),
+            tonumber(args.roundIndex or 0),
             elapsed,
             T("UI_rogue_hud_kills"),
             tonumber(args.kills or 0),
             tonumber(args.killTarget or 0)
         )
     elseif status == "LOBBY" then
-        text = string.format("%s | %s | %s: %d/%d %s",
+        local arenaName = tostring(args.arenaZoneName or "")
+        if arenaName:sub(1, 3) == "RA_" then
+            arenaName = arenaName:sub(4)
+        end
+        if arenaName == "" then
+            arenaName = "?"
+        end
+        local mapLabel = T("UI_rogue_hud_map")
+        if mapLabel == "UI_rogue_hud_map" then
+            mapLabel = "Map"
+        end
+        text = string.format("%s | %s | %s",
             tostring(diffLabel),
             statusLabel,
-            T("UI_rogue_hud_players"),
-            tonumber(args.spawnLive or 0),
-            tonumber(args.buildChosen or 0),
-            T("UI_rogue_hud_ready")
+            string.format("%s: %s", mapLabel, arenaName)
         )
     else
         text = string.format("%s | %s | %s %d | %s",
@@ -2291,6 +3127,21 @@ function Client.updateHud(state, args)
         )
     end
     Client.setShadowLabelText(hud.label, text)
+    if hud.readyBtn then
+        local showReady = status == "PREP" or status == "LOBBY"
+        hud.readyBtn:setVisible(showReady)
+        Client.setShadowLabelVisible(hud.readyLabel, showReady)
+        if showReady then
+            local readyCount = tonumber(args and args.prepReady or 0) or 0
+            local readyTotal = tonumber(args and args.prepEligible or 0) or 0
+            local readyText = string.format("%s: %d/%d", T("UI_rogue_hud_ready"), readyCount, readyTotal)
+            Client.setShadowLabelText(hud.readyLabel, readyText)
+            local btnText = Client._prepReadyActive and T("UI_rogue_prep_ready_on") or T("UI_rogue_prep_ready")
+            if hud.readyBtn.setTitle then
+                hud.readyBtn:setTitle(btnText)
+            end
+        end
+    end
     hud.panel:setVisible(true)
     if status == "LOBBY" then
         Client.openMiniMapInLobby()
@@ -2415,6 +3266,12 @@ function Client.rebuildShopMarkers()
             end
         end
     end
+    local now = getTimestampMs()
+    if now - (Client._shopMarkerLogAtMs or 0) > 3000 then
+        Client._shopMarkerLogAtMs = now
+        print(string.format("[Roguelityno][ShopMarkers] rebuild entries=%d markers=%d",
+            tonumber(#entries), tonumber(#Client._shopMarkers)))
+    end
 end
 
 function Client.clearShopWorldMarkers()
@@ -2427,6 +3284,15 @@ function Client.clearShopWorldMarkers()
         end
     end
     Client._shopWorldMarkers = {}
+    if Client._shopLights and #Client._shopLights > 0 then
+        local cell = getCell()
+        if cell and cell.removeLamppost then
+            for i = 1, #Client._shopLights do
+                pcall(cell.removeLamppost, cell, Client._shopLights[i])
+            end
+        end
+    end
+    Client._shopLights = {}
     Client._shopMarkerActive = false
     Client._shopMarkerStatus = nil
 end
@@ -2435,15 +3301,18 @@ function Client.createShopWorldMarkers(status)
     if not WorldMarkers or not WorldMarkers.instance then return end
     local wm = WorldMarkers.instance
     Client._shopWorldMarkers = {}
+    Client._shopLights = {}
     local size = (Rogue.Config and Rogue.Config.SHOP_MARKER_SIZE) or Client.SHOP_MARKER_SIZE or 0.65
     local texByCat = Rogue.Config and Rogue.Config.SHOP_MARKER_TEX_BY_CATEGORY or {}
     local colorByCat = Rogue.Config and Rogue.Config.SHOP_MARKER_COLOR_BY_CATEGORY or {}
+    local glowCfg = Rogue.Config and Rogue.Config.SHOP_TILE_GLOW or {}
+    local glowEnabled = glowCfg.enabled ~= false
+    local glowRadius = tonumber(glowCfg.radius) or 6
+    local glowBoost = tonumber(glowCfg.colorBoost) or 0.0
     for i = 1, #Client._shopMarkers do
         local m = Client._shopMarkers[i]
         if status == "LOBBY" and m.category ~= "builds" then
             -- only build shop in lobby
-        elseif status == "PREP" and m.category == "builds" then
-            -- no build shop in prep
         else
             local square = getCell():getGridSquare(m.x, m.y, m.z)
             if square then
@@ -2451,19 +3320,35 @@ function Client.createShopWorldMarkers(status)
                 local r = tonumber(color.r) or 0.0
                 local g = tonumber(color.g) or 1.0
                 local b = tonumber(color.b) or 0.4
-                local marker = nil
                 local tex = texByCat[m.category] or Client.SHOP_MARKER_TEX or (Rogue.Config and Rogue.Config.SHOP_MARKER_TEX) or nil
                 local texOk = false
                 if tex and getTexture then
                     texOk = getTexture(tex) ~= nil
                 end
-                if tex and texOk then
-                    marker = wm:addGridSquareMarker(tex, nil, square, r, g, b, true, size)
-                else
-                    marker = wm:addGridSquareMarker(square, r, g, b, true, size)
+                local function addMarkerAt(sq)
+                    if not sq then return end
+                    local marker = nil
+                    if tex and texOk then
+                        marker = wm:addGridSquareMarker(tex, nil, sq, r, g, b, true, size)
+                    else
+                        marker = wm:addGridSquareMarker(sq, r, g, b, true, size)
+                    end
+                    if marker then
+                        table.insert(Client._shopWorldMarkers, marker)
+                    end
                 end
-                if marker then
-                    table.insert(Client._shopWorldMarkers, marker)
+                addMarkerAt(square)
+                if glowEnabled and getCell and glowRadius > 0 then
+                    local cell = getCell()
+                    if cell and cell.addLamppost then
+                        local rr = math.min(1.0, r + glowBoost)
+                        local gg = math.min(1.0, g + glowBoost)
+                        local bb = math.min(1.0, b + glowBoost)
+                        local ok, light = pcall(cell.addLamppost, cell, m.x, m.y, m.z, rr, gg, bb, glowRadius)
+                        if ok and light then
+                            table.insert(Client._shopLights, light)
+                        end
+                    end
                 end
             end
         end
@@ -2481,6 +3366,10 @@ function Client.updateShopWorldMarkers()
         if Client._shopMarkerActive then
             Client.clearShopWorldMarkers()
         end
+        if now - (Client._shopMarkerLogAtMs or 0) > 3000 then
+            Client._shopMarkerLogAtMs = now
+            print("[Roguelityno][ShopMarkers] none to draw (no markers)")
+        end
         return
     end
     local status = (Client._lastScore and Client._lastScore.status) or Client._lastStatus
@@ -2488,19 +3377,9 @@ function Client.updateShopWorldMarkers()
         if Client._shopMarkerActive then
             Client.clearShopWorldMarkers()
         end
-        return
-    end
-    local player = getPlayer()
-    if not player then return end
-    local shouldShow = false
-    if status == "PREP" and Client.isPlayerInSafe(player) then
-        shouldShow = true
-    elseif status == "LOBBY" and Client.isPlayerInSpawn(player) then
-        shouldShow = true
-    end
-    if not shouldShow then
-        if Client._shopMarkerActive then
-            Client.clearShopWorldMarkers()
+        if now - (Client._shopMarkerLogAtMs or 0) > 3000 then
+            Client._shopMarkerLogAtMs = now
+            print(string.format("[Roguelityno][ShopMarkers] hidden status=%s", tostring(status)))
         end
         return
     end
@@ -2550,8 +3429,46 @@ function Client.onTick()
             Client._overtimeNextAtMs = now + math.max(1000, loopMs)
         end
     end
+    do
+        local now = getTimestampMs()
+        local status = Client._lastStatus
+        local rect = Client.getArenaRect()
+        local player = getPlayer()
+        local outside = false
+        if status == "WAVE" and rect and player then
+            local px, py, pz = player:getX(), player:getY(), player:getZ()
+            local rz = rect.z or 0
+            outside = (pz ~= rz or px < rect.x1 or px > rect.x2 or py < rect.y1 or py > rect.y2)
+        end
+        if outside and player and Rogue and Rogue.Config then
+            local ignoreName = Rogue.Config.OUTSIDE_IGNORE_TIERZONE
+            if ignoreName and ignoreName ~= "" and Rogue.Config.ZONES and Rogue.Config.ZONES.SPAWN then
+                local s = Rogue.Config.ZONES.SPAWN
+                local sz = s.z or 0
+                local px, py, pz = player:getX(), player:getY(), player:getZ()
+                if pz == sz and px >= s.x1 and px <= s.x2 and py >= s.y1 and py <= s.y2 then
+                    outside = false
+                end
+            end
+        end
+        if outside then
+            if now >= (Client._outsideSoundNextAtMs or 0) then
+                Client.playUISound("out_of_bounds")
+                local loopMs = tonumber(Rogue.Config and Rogue.Config.OUTSIDE_SOUND_LOOP_MS) or 3000
+                Client._outsideSoundNextAtMs = now + math.max(500, loopMs)
+            end
+            Client._outsideSoundActive = true
+        else
+            if Client._outsideSoundActive then
+                Client.stopUISound("out_of_bounds")
+            end
+            Client._outsideSoundActive = false
+            Client._outsideSoundNextAtMs = 0
+        end
+    end
     Client.updateArenaBorderMarkers()
     Client.updateShopWorldMarkers()
+    Client.updateLastZombieMinimap()
 end
 
 function Client.showMessage(text)
@@ -2691,7 +3608,14 @@ function Client.onServerCommand(module, command, args)
         end
     elseif command == "roundOvertimeSoon" then
         Client.playUISound("round_overtime_soon")
+    elseif command == "prepReady" and args then
+        Client._prepReadyActive = args.ready and true or false
+        local hud = Client._hud
+        if hud and hud.panel and hud.panel:isVisible() and Client._lastHudArgs then
+            Client.updateHud(Client._lastStatus, Client._lastHudArgs)
+        end
     elseif command == "hud" and args then
+        Client._lastHudArgs = args
         Client.updateHud(args.status, args)
         if args.status ~= "WAVE" then
             Client._overtimeLoopActive = false
@@ -2700,16 +3624,7 @@ function Client.onServerCommand(module, command, args)
             Client.stopUISound("round_overtime_announce")
             Client.stopUISound("round_overtime_soon")
         end
-        if args.status == "LOBBY" then
-            local player = getPlayer()
-            if player and not player:isDead() and Client.isPlayerInSpawn(player) then
-                Client.openBuildSelectorPanel()
-            else
-                Client._buildSelectorShown = false
-            end
-        else
-            Client._buildSelectorShown = false
-        end
+        Client._buildSelectorShown = false
     elseif command == "clientTeleport" and args then
         local player = getPlayer()
         local x = tonumber(args.x) or 0
@@ -2810,11 +3725,55 @@ function Client.onServerCommand(module, command, args)
         else
             Client.showMessage(T("UI_rogue_reward_failed"))
         end
+    elseif command == "roundRewardRerollResult" and args then
+        if args.ok then
+            Client.playUISound("reward_reroll")
+            Client.showMessage(T("UI_rogue_reward_reroll_ok"))
+        else
+            local key = "UI_rogue_reward_reroll_failed"
+            if args.error == "funds" then
+                key = "UI_rogue_reward_reroll_fail_funds"
+                Client.playUISound("shop_buy_fail")
+            elseif args.error == "limit" then
+                key = "UI_rogue_reward_reroll_fail_limit"
+            elseif args.error == "disabled" then
+                key = "UI_rogue_reward_reroll_fail_disabled"
+            elseif args.error == "stale" then
+                key = "UI_rogue_reward_reroll_fail_stale"
+            end
+            Client.showMessage(T(key))
+        end
     elseif command == "buildBuyResult" and args then
         if args.ok then
             Client.playUISound("build_buy_ok", "builds")
         else
             Client.playUISound("build_buy_fail", "builds")
+        end
+    elseif command == "weaponModResult" and args then
+        if args.ok then
+            Client.showMessage(T("UI_rogue_weaponmod_ok"))
+        else
+            local key = "UI_rogue_weaponmod_failed"
+            if args.reason == "slot_full" then
+                key = "UI_rogue_weaponmod_slot_full"
+            elseif args.reason == "kit_incompatible" then
+                key = "UI_rogue_weaponmod_kit_incompatible"
+            elseif args.reason == "bad_weapon" then
+                key = "UI_rogue_weaponmod_bad_weapon"
+            end
+            Client.showMessage(T(key))
+        end
+    elseif command == "weaponScrapResult" and args then
+        if args.ok then
+            Client.showMessage(T("UI_rogue_weaponscrap_ok"))
+        else
+            local key = "UI_rogue_weaponscrap_failed"
+            if args.reason == "not_mr_rumble" then
+                key = "UI_rogue_weaponscrap_not_rumble"
+            elseif args.reason == "not_eligible" then
+                key = "UI_rogue_weaponscrap_not_eligible"
+            end
+            Client.showMessage(T(key))
         end
     end
 end
@@ -2971,6 +3930,15 @@ function Client.readyToggle(player)
     sendClientCommand("Rogue", "ready", {})
 end
 
+function Client.setPrepReady(ready)
+    Client._prepReadyActive = ready and true or false
+    sendClientCommand("Rogue", "prepReady", { ready = Client._prepReadyActive })
+end
+
+function Client.togglePrepReady()
+    Client.setPrepReady(not Client._prepReadyActive)
+end
+
 function Client.onWorldContextMenu(player, context, worldobjects)
     if not context then return end
     local now = getTimestampMs()
@@ -2994,6 +3962,9 @@ function Client.onWorldContextMenu(player, context, worldobjects)
     end
 
     local submenu = context:addOption("Roguelityno")
+    if setOptionIcon then
+        setOptionIcon(submenu, "media/textures/ui/legendary_symbol.png")
+    end
     if not submenu then
         return
     end
@@ -3086,6 +4057,9 @@ local function onSerumContextMenu(playerIndex, context, items)
         local item = resolveInventoryItem(items[i])
         if item and item.getFullType and item:getFullType() == "Rogue.FullRestoreSerum" then
             local opt = context:addOption(T("UI_rogue_use_serum"), player, Client.useFullRestoreSerum, item)
+            if setOptionIcon then
+                setOptionIcon(opt, "media/textures/Item_FullRestoreSerum_icon.png")
+            end
             if context.options and opt then
                 table.remove(context.options, #context.options)
                 table.insert(context.options, 1, opt)
@@ -3120,6 +4094,9 @@ local function onBogdanoContextMenu(playerIndex, context, items)
         if item and Rogue and Rogue.Bogdano and Rogue.Bogdano.isBottle and Rogue.Bogdano.isBottle(item)
             and Rogue.Bogdano.isBottleFull and Rogue.Bogdano.isBottleFull(item) then
             local opt = context:addOption(T("UI_rogue_bogdano_drink"), player, Client.useBogdanoDrink, item)
+            if setOptionIcon then
+                setOptionIcon(opt, "media/textures/weapons/1handed/SmashedBottle.png")
+            end
             if context.options and opt then
                 table.remove(context.options, #context.options)
                 table.insert(context.options, 1, opt)

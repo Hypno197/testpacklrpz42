@@ -12,12 +12,18 @@ require "RogueEconomy"
 require "RogueShop"
 require "RogueProfessions"
 require "RogueFullRestoreAction"
+require "RogueBogdanoSmokeHook"
+require "RogueWeaponMods"
+require "RogueWeaponModAction"
+require "RogueWeaponScrapAction"
+require "RogueBuildTagHook"
 
 local Config = Rogue.Config
 local Zones = Rogue.Zones
 local Spawns = Rogue.Spawns
 local Economy = Rogue.Economy
 local FullRestore = Rogue.FullRestore
+local WeaponMods = Rogue.WeaponMods
 
 Server.STATE_IDLE = "IDLE"
 Server.STATE_LOBBY = "LOBBY"
@@ -115,7 +121,7 @@ local function isTypeAllowed(entryType, rule)
     return false
 end
 
-local function getRewardWeights(roundIndex, maxRounds, tier)
+local function getRewardWeights(roundIndex, maxRounds, tier, player)
     local cfg = Config.REWARD_RARITY_WEIGHTS or {}
     local early = cfg.early or {}
     local late = cfg.late or {}
@@ -146,6 +152,16 @@ local function getRewardWeights(roundIndex, maxRounds, tier)
     elseif tier and tier >= 5 and tierBump.tier5 then
         for key, value in pairs(tierBump.tier5) do
             weights[key] = (weights[key] or 0) + value
+        end
+    end
+    local bonusCfg = Config.REWARD_LEGENDA_RARITY_BONUS
+    if bonusCfg and player and player.getModData then
+        local md = player:getModData()
+        local buildId = md and md.RogueBuildId or nil
+        if buildId == (Config.BUILD_ID_LEGENDA or "roguelityno:la_leggenda") then
+            for key, value in pairs(bonusCfg) do
+                weights[key] = (weights[key] or 0) + (tonumber(value) or 0)
+            end
         end
     end
     local clampCfg = cfg.clamp or {}
@@ -201,7 +217,8 @@ end
 
 local function isRewardAllowedForPlayer(entry, player)
     if not entry then return false end
-    local buildOnly = entry.buildOnly
+    if entry.allBuilds == true then return true end
+    local buildOnly = entry.buildIds or entry.buildOnly or entry.buildId
     if not buildOnly then return true end
     local md = player and player.getModData and player:getModData() or nil
     local buildId = md and md.RogueBuildId or nil
@@ -215,6 +232,141 @@ local function isRewardAllowedForPlayer(entry, player)
         end
     end
     return false
+end
+
+local function addBuildId(list, buildId)
+    if not buildId then return end
+    for i = 1, #list do
+        if list[i] == buildId then return end
+    end
+    list[#list + 1] = buildId
+end
+
+local function buildSkillToBuildIds()
+    local map = {}
+    local builds = Config.BUILDS or {}
+    for i = 1, #builds do
+        local build = builds[i]
+        local buildId = build and build.id
+        if buildId then
+            local skills = build.skills or {}
+            for perkId, level in pairs(skills) do
+                if tonumber(level) and tonumber(level) > 0 then
+                    map[perkId] = map[perkId] or {}
+                    addBuildId(map[perkId], buildId)
+                end
+            end
+            local stats = build.startingStats or {}
+            for perkId, level in pairs(stats) do
+                if tonumber(level) and tonumber(level) > 0 then
+                    map[perkId] = map[perkId] or {}
+                    addBuildId(map[perkId], buildId)
+                end
+            end
+        end
+    end
+    return map
+end
+
+local function copyList(list)
+    local out = {}
+    if list then
+        for i = 1, #list do
+            out[i] = list[i]
+        end
+    end
+    return out
+end
+
+local function intersectBuildIds(a, b)
+    local out = {}
+    if not a or not b then return out end
+    local set = {}
+    for i = 1, #a do
+        set[a[i]] = true
+    end
+    for i = 1, #b do
+        if set[b[i]] then
+            out[#out + 1] = b[i]
+        end
+    end
+    return out
+end
+
+local function resolveWeaponSkillIdFromItemId(itemId)
+    if not itemId or itemId == "" then return nil end
+    local sm = (getScriptManager and getScriptManager()) or ScriptManager and ScriptManager.instance or nil
+    if sm and sm.FindItem then
+        local ok, scriptItem = pcall(sm.FindItem, sm, itemId)
+        if ok and scriptItem then
+            local okSkill, perk = pcall(scriptItem.getWeaponSkill, scriptItem)
+            if okSkill and perk then
+                if type(perk) == "string" then
+                    return perk
+                end
+                if perk.getId then
+                    local okId, id = pcall(perk.getId, perk)
+                    if okId and id then return tostring(id) end
+                end
+                if perk.getName then
+                    local okName, name = pcall(perk.getName, perk)
+                    if okName and name then return tostring(name) end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function applyRewardBuildIds()
+    if Server._rewardBuildIdsApplied then return end
+    Server._rewardBuildIdsApplied = true
+    local skillMap = buildSkillToBuildIds()
+    local pools = Config.REWARD_POOLS or {}
+    for _, list in pairs(pools) do
+        if type(list) == "table" then
+            for i = 1, #list do
+                local entry = list[i]
+                if entry and not entry.allBuilds and not entry.buildIds and not entry.buildOnly and not entry.buildId then
+                    local rewardType = tostring(entry.type or "")
+                    if rewardType == "skill" or rewardType == "xpBoost" then
+                        local perkId = entry.skill or entry.id
+                        local builds = perkId and skillMap[perkId] or nil
+                        if builds and #builds > 0 then
+                            entry.buildIds = copyList(builds)
+                        end
+                    elseif rewardType == "skills" then
+                        local skills = entry.skills
+                        local combined = nil
+                        if type(skills) == "table" and #skills > 0 then
+                            for s = 1, #skills do
+                                local perkId = skills[s] and (skills[s].skill or skills[s].id) or nil
+                                local builds = perkId and skillMap[perkId] or nil
+                                if not builds or #builds == 0 then
+                                    combined = {}
+                                    break
+                                end
+                                if not combined then
+                                    combined = copyList(builds)
+                                else
+                                    combined = intersectBuildIds(combined, builds)
+                                end
+                            end
+                        end
+                        if combined and #combined > 0 then
+                            entry.buildIds = combined
+                        end
+                    elseif rewardType == "item" then
+                        local skillId = resolveWeaponSkillIdFromItemId(entry.id)
+                        local builds = skillId and skillMap[skillId] or nil
+                        if builds and #builds > 0 then
+                            entry.buildIds = copyList(builds)
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
 
 local function pickRewardFromPool(rarity, rule, usedKeys, player)
@@ -364,21 +516,21 @@ local function clearXpBoostForPerk(xp, perk, player)
     syncXpMultiplier(player, perk, 1.0, 0, 0)
 end
 
-local function setPerkLevel(player, perk, level)
-    local xp = player and player.getXp and player:getXp() or nil
-    local target = math.floor(level or 0)
-    if xp and xp.setPerkLevel then
-        local ok = pcall(function() xp:setPerkLevel(perk, target) end)
-        if not ok then
-            pcall(function() xp:setPerkLevel(perk, target, true) end)
-        end
-    elseif xp and xp.setXPToLevel then
-        pcall(function() xp:setXPToLevel(perk, target) end)
-    end
-    if player and player.setPerkLevel then
-        pcall(function() player:setPerkLevel(perk, target) end)
-    end
-end
+-- local function setPerkLevel(player, perk, level)
+--     local xp = player and player.getXp and player:getXp() or nil
+--     local target = math.floor(level or 0)
+--     if xp and xp.setPerkLevel then
+--         local ok = pcall(function() xp:setPerkLevel(perk, target) end)
+--         if not ok then
+--             pcall(function() xp:setPerkLevel(perk, target, true) end)
+--         end
+--     elseif xp and xp.setXPToLevel then
+--         pcall(function() xp:setXPToLevel(perk, target) end)
+--     end
+--     if player and player.setPerkLevel then
+--         pcall(function() player:setPerkLevel(perk, target) end)
+--     end
+-- end
 
 local function getPerkLevel(player, perk)
     if player and player.getPerkLevel then
@@ -470,6 +622,16 @@ local function applyRewardChoice(player, choice, roundIndex)
             if inv and inv.AddItem then
                 for i = 1, qty do
                     local item = inv:AddItem(id)
+                    if item and Rogue.WeaponMods and WeaponMods.isEligibleWeapon(item) and not WeaponMods.hasMod(item) then
+                        local rarity = tostring(choice.rarity or "common")
+                        local def = WeaponMods.rollRewardMod(player, item, rarity)
+                        if def then
+                            WeaponMods.applyModDirect(player, item, def, "reward")
+                            if item.syncItemFields then
+                                item:syncItemFields()
+                            end
+                        end
+                    end
                     if item and sendAddItemToContainer then
                         sendAddItemToContainer(inv, item)
                     end
@@ -559,10 +721,11 @@ local function applyRewardChoice(player, choice, roundIndex)
 end
 
 local function buildRewardChoices(player)
+    applyRewardBuildIds()
     local roundIndex = tonumber(Server.state.roundIndex or 0) or 0
     local maxRounds = tonumber(Server.state.maxRounds or 0) or 0
     local tier = tonumber(Server.state.currentTier or 1) or 1
-    local weights = getRewardWeights(roundIndex, maxRounds, tier)
+    local weights = getRewardWeights(roundIndex, maxRounds, tier, player)
     local choices = {}
     local used = {}
     local count = math.max(1, tonumber(Config.REWARD_CHOICE_COUNT or 3) or 3)
@@ -577,6 +740,56 @@ local function buildRewardChoices(player)
         end
     end
     return choices
+end
+
+local function buildRewardChoiceForSlot(player, slot, existingChoices)
+    applyRewardBuildIds()
+    local roundIndex = tonumber(Server.state.roundIndex or 0) or 0
+    local maxRounds = tonumber(Server.state.maxRounds or 0) or 0
+    local tier = tonumber(Server.state.currentTier or 1) or 1
+    local weights = getRewardWeights(roundIndex, maxRounds, tier, player)
+    local used = {}
+    if type(existingChoices) == "table" then
+        for i = 1, #existingChoices do
+            if i ~= slot then
+                local entry = existingChoices[i] and existingChoices[i].entry or nil
+                if entry then
+                    local key = tostring(entry.type) .. ":" .. tostring(entry.id or entry.skill or entry.amount or entry.qty or entry.levels or i)
+                    used[key] = true
+                end
+            end
+        end
+    end
+    local rule = getRarityRuleForSlot(slot)
+    local rarity = pickWeightedRarity(weights, rule)
+    local entry = pickRewardFromPool(rarity, rule, used, player)
+    if not entry then return nil end
+    return { rarity = rarity, entry = entry }
+end
+
+local function getRewardRerollCost(count, player)
+    local base = tonumber(Config.REWARD_REROLL_BASE_COST or 0) or 0
+    local step = tonumber(Config.REWARD_REROLL_STEP_COST or 0) or 0
+    if base <= 0 then return nil end
+    local c = math.max(0, tonumber(count) or 0)
+    local cost = base + (step * c)
+    if player and player.getModData then
+        local md = player:getModData()
+        local buildId = md and md.RogueBuildId or nil
+        if buildId == (Config.BUILD_ID_LEGENDA or "roguelityno:la_leggenda") then
+            local discount = tonumber(Config.REWARD_REROLL_LEGENDA_DISCOUNT or 0) or 0
+            cost = math.max(0, cost - discount)
+        end
+    end
+    return cost
+end
+
+local function canRewardReroll(count)
+    local maxCount = tonumber(Config.REWARD_REROLL_MAX or 0) or 0
+    if maxCount > 0 and (tonumber(count) or 0) >= maxCount then
+        return false
+    end
+    return true
 end
 
 local function log(msg)
@@ -595,49 +808,140 @@ local function isRunActive()
         or Server.state.status == Server.STATE_POST
 end
 
-local function isArenaSquare(x, y, z)
-    if not Config or not Config.isRectValid or not Config.isRectValid(Config.ZONES.ARENA) then return false end
-    local rect = Config.ZONES.ARENA
+local function isRectSquare(rect, x, y, z)
+    if not Config or not Config.isRectValid or not Config.isRectValid(rect) then return false end
     local rz = rect.z or 0
     if (z or 0) ~= rz then return false end
     return x >= rect.x1 and x <= rect.x2 and y >= rect.y1 and y <= rect.y2
 end
 
+local function isArenaSquare(x, y, z)
+    return isRectSquare(Config.ZONES.ARENA, x, y, z)
+end
+
+local function isTrackedSquare(x, y, z)
+    if isRectSquare(Config.ZONES.ARENA, x, y, z) then return true end
+    if isRectSquare(Config.ZONES.SAFE, x, y, z) then return true end
+    return false
+end
+
 local function trackPlacedObject(obj)
     if not obj or not obj.getSquare then return end
-    if not isRunActive() then return end
-    if not Server.state.runId then return end
+    local status = Server.state and Server.state.status or nil
+    if status ~= Server.STATE_LOBBY and not isRunActive() then return end
     if instanceof(obj, "IsoWorldInventoryObject") then return end
     local sq = obj:getSquare()
     if not sq then return end
     local x, y, z = sq:getX(), sq:getY(), sq:getZ()
-    if not isArenaSquare(x, y, z) then return end
+    if not isTrackedSquare(x, y, z) then return end
+
     local md = obj.getModData and obj:getModData() or nil
-    if md and md.RoguePlacedRun == Server.state.runId then return end
+    local moved = false
+    if obj.isMovedThumpable then
+        local okMoved, isMoved = pcall(obj.isMovedThumpable, obj)
+        moved = okMoved and isMoved or false
+    end
+    if md and md.RoguePlacedRun then return end
     if md then
-        md.RoguePlacedRun = Server.state.runId
+        md.RoguePlacedRun = Server.state.runId or "preRun"
     end
     Server.state.placedObjects = Server.state.placedObjects or {}
     table.insert(Server.state.placedObjects, obj)
+
+    local shouldLog = moved or instanceof(obj, "IsoThumpable")
+    if shouldLog then
+        local spriteName = nil
+        if obj.getSprite then
+            local okSprite, sprite = pcall(obj.getSprite, obj)
+            if okSprite and sprite and sprite.getName then
+                local okName, name = pcall(sprite.getName, sprite)
+                if okName then spriteName = name end
+            end
+        end
+        log(string.format("PlacedTrack obj=%s sprite=%s moved=%s at=%d,%d,%d run=%s",
+            tostring(obj),
+            tostring(spriteName),
+            tostring(moved),
+            tonumber(x) or -1,
+            tonumber(y) or -1,
+            tonumber(z) or 0,
+            tostring(Server.state.runId or "preRun")
+        ))
+    end
 end
 
 function Server.cleanupPlacedObjects()
-    local list = Server.state.placedObjects
-    if not list or #list == 0 then
-        Server.state.placedObjects = {}
-        return
+    local function removePlacedObject(obj, square)
+        if not obj then return end
+        if square and square.transmitRemoveItemFromSquare then
+            pcall(square.transmitRemoveItemFromSquare, square, obj)
+        end
+        if obj.transmitRemoveFromSquare then
+            pcall(obj.transmitRemoveFromSquare, obj)
+        end
+        if obj.removeFromSquare then
+            pcall(obj.removeFromSquare, obj)
+        end
+        if obj.removeFromWorld then
+            pcall(obj.removeFromWorld, obj)
+        end
     end
+
+    local removed = 0
+    local list = Server.state.placedObjects or {}
     for i = #list, 1, -1 do
         local obj = list[i]
-        if obj and obj.getSquare then
-            local sq = obj:getSquare()
-            if sq then
-                pcall(sq.transmitRemoveItemFromSquare, sq, obj)
-            end
-        end
+        local sq = obj and obj.getSquare and obj:getSquare() or nil
+        removePlacedObject(obj, sq)
+        removed = removed + 1
         list[i] = nil
     end
     Server.state.placedObjects = {}
+
+    local cell = getCell()
+    if not cell or not Config or not Config.isRectValid then
+        if removed > 0 then
+            log(string.format("Placed objects removed=%d", removed))
+        end
+        return
+    end
+
+    local function scanRect(rect)
+        if not Config.isRectValid(rect) then return 0 end
+        local x1 = math.floor(math.min(rect.x1, rect.x2))
+        local x2 = math.floor(math.max(rect.x1, rect.x2))
+        local y1 = math.floor(math.min(rect.y1, rect.y2))
+        local y2 = math.floor(math.max(rect.y1, rect.y2))
+        local z = rect.z or 0
+        local count = 0
+        for x = x1, x2 do
+            for y = y1, y2 do
+                local square = cell:getGridSquare(x, y, z)
+                if square then
+                    local objects = square:getObjects()
+                    if objects then
+                        for i = objects:size() - 1, 0, -1 do
+                            local obj = objects:get(i)
+                            if obj and obj.getModData then
+                                local md = obj:getModData()
+                                if md and md.RoguePlacedRun then
+                                    removePlacedObject(obj, square)
+                                    count = count + 1
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return count
+    end
+
+    removed = removed + scanRect(Config.ZONES.ARENA)
+    removed = removed + scanRect(Config.ZONES.SAFE)
+    if removed > 0 then
+        log(string.format("Placed objects removed=%d", removed))
+    end
 end
 
 local function sendBuildIdToPlayer(player, buildId)
@@ -680,6 +984,9 @@ local function restoreOutfitItems(player, items, desc)
     local inv = player.getInventory and player:getInventory() or nil
     if not inv then return end
     local debugOutfit = true
+    local remap = {
+        ["Base.Belt"] = "Base.Belt2",
+    }
     if not items or #items == 0 then
         local worn = desc and desc.getWornItems and desc:getWornItems() or nil
         if debugOutfit then
@@ -719,7 +1026,11 @@ local function restoreOutfitItems(player, items, desc)
     end
     for i = 1, #items do
         local entry = items[i]
-        local item = entry and entry.id and inv:AddItem(entry.id) or nil
+        local id = entry and entry.id or nil
+        if id and remap[id] then
+            id = remap[id]
+        end
+        local item = id and inv:AddItem(id) or nil
         if item and sendAddItemToContainer then
             sendAddItemToContainer(inv, item)
         end
@@ -858,6 +1169,7 @@ function Server.resetPlayerForRun(player, reason)
         md.RogueOutsideWarned = nil
         md.RogueOutsideDamageStart = nil
         md.RogueOutsideLastDamageAt = nil
+        md.RogueLobbyReady = false
     end
     sendBuildIdToPlayer(player, nil)
 
@@ -925,6 +1237,27 @@ function Server.resetPlayerForRun(player, reason)
             tostring(health)
         ))
         sendServerCommand(player, "Rogue", "debugHealth", { health = health })
+    end
+end
+
+
+function Server.resetPlayersForNewRun(reason)
+    local players = getOnlinePlayers()
+    if not players then return end
+    for i = 0, players:size() - 1 do
+        local player = players:get(i)
+        if player then
+            Server.resetPlayerForRun(player, reason or "lobby-gather")
+            if Economy and Economy.setWallet then
+                local startCurrency = (Config.getStartingCurrency and Config.getStartingCurrency(Server.state.difficultyId))
+                    or Config.STARTING_CURRENCY or 0
+                Economy.setWallet(player, startCurrency)
+            end
+            local key = Server.getPlayerKey(player)
+            if Server.roundStats and key and Server.roundStats[key] then
+                Server.roundStats[key].gameCurrency = 0
+            end
+        end
     end
 end
 
@@ -996,8 +1329,12 @@ function Server.sendHud(status, elapsedSec)
         end
     end
     local spawnLive, buildChosen = 0, 0
+    local prepReady, prepEligible = 0, 0
     if status == Server.STATE_LOBBY then
         spawnLive, buildChosen = countSpawnReady()
+        prepReady, prepEligible = Server.countLobbyReady()
+    elseif status == Server.STATE_PREP then
+        prepReady, prepEligible = Server.countPrepReady()
     end
     sendServerCommand("Rogue", "hud", {
         status = status,
@@ -1009,6 +1346,9 @@ function Server.sendHud(status, elapsedSec)
         maxRounds = Server.state.maxRounds or 0,
         spawnLive = spawnLive,
         buildChosen = buildChosen,
+        prepReady = prepReady,
+        prepEligible = prepEligible,
+        arenaZoneName = Server.state.arenaZoneName,
     })
 end
 
@@ -1346,6 +1686,8 @@ function Server.resetState()
     Server.state.originalArenaSprinter = nil
     Server.state.overtimeAnnounced = false
     Server.state.overtimeSoonSent = false
+    Server.state.overtimeBudgetNextAtMs = 0
+    Server.state.preOvertimeBudgetNextAtMs = 0
     Server.state.statsSnapshotNextAtMs = 0
     Server.state.hudNextAtMs = 0
     Server.state.scoreNextAtMs = 0
@@ -1377,11 +1719,14 @@ local function emitArenaBeacon()
     local dx = (x2 - x1) / 2
     local dy = (y2 - y1) / 2
     local base = math.sqrt(dx * dx + dy * dy)
+    local width = math.abs(x2 - x1)
+    local height = math.abs(y2 - y1)
+    local maxRadius = math.max(width, height)
     local buffer = Config.SPAWN_ARENA_BUFFER or 0
     local extra = Config.BEACON_EXTRA_RADIUS or 0
     local tierStep = Config.BEACON_TIER_STEP or 0
     local tier = Server.state.currentTier or 1
-    local radius = base + buffer + extra + math.max(0, tier - 1) * tierStep
+    local radius = math.max(base, maxRadius) + buffer + extra + math.max(0, tier - 1) * tierStep
     local volume = Config.BEACON_VOLUME or 50
     pcall(addSound, nil, cx, cy, z, radius, volume)
 end
@@ -1583,6 +1928,7 @@ function Server.startFromParams(player, targetPlayers, maxRounds, args)
     local interval = (tonumber(Config.STATS_SNAPSHOT_MINUTES) or 0) * 60000
     Server.state.statsSnapshotNextAtMs = interval > 0 and (Server.state.startedAtMs + interval) or 0
     Server.cleanupArena("start")
+    Server.resetPlayersForNewRun("start-reset")
     Server.startLobby(Server.state.startedAtMs)
 
     local live = Server.countLivePlayers()
@@ -1683,6 +2029,16 @@ end
 
 function Server.cleanupArena(reason)
     if not Config.isRectValid(Config.ZONES.ARENA) then return end
+    local removeZombies = true
+    local removeCorpses = true
+    local removeWorldItems = false
+    if reason == "zombies" then
+        removeCorpses = false
+    elseif reason == "corpses" then
+        removeZombies = false
+    elseif reason == "start" or reason == "stop" or reason == "finish" or reason == "failed" then
+        removeWorldItems = true
+    end
     local rect = Config.ZONES.ARENA
     local buffer = math.max(0, math.floor(tonumber(Config.OUTSIDE_ARENA_MAX_BUFFER or 0) or 0))
     local x1 = math.floor(math.min(rect.x1, rect.x2) - buffer)
@@ -1696,55 +2052,64 @@ function Server.cleanupArena(reason)
     local z = rect.z or 0
     local cell = getCell()
     if not cell then return end
+    local function inRect(x, y)
+        return x >= x1 and x <= x2 and y >= y1 and y <= y2
+    end
+
+    local removedZombies = 0
+    local removedCorpses = 0
+
+    if removeZombies then
+        local list = cell:getObjectList()
+        if list then
+            for i = list:size(), 1, -1 do
+                local obj = list:get(i - 1)
+                if instanceof(obj, "IsoZombie") then
+                    local sq = obj:getSquare()
+                    if sq and sq:getZ() == z and inRect(sq:getX(), sq:getY()) then
+                        obj:removeFromWorld()
+                        obj:removeFromSquare()
+                        removedZombies = removedZombies + 1
+                    end
+                end
+            end
+        end
+    end
 
     for x = x1, x2 do
         for y = y1, y2 do
             local square = cell:getGridSquare(x, y, z)
             if square then
-                local moving = square:getMovingObjects()
-                if moving then
-                    for i = moving:size() - 1, 0, -1 do
-                        local obj = moving:get(i)
-                        if instanceof(obj, "IsoZombie") then
-                            obj:removeFromWorld()
-                            obj:removeFromSquare()
-                        elseif instanceof(obj, "IsoDeadBody") then
-                            obj:removeFromWorld()
-                            obj:removeFromSquare()
+                if removeCorpses then
+                    local bodies = {}
+                    local dead = square:getDeadBodys()
+                    if dead then
+                        for i = 0, dead:size() - 1 do
+                            local body = dead:get(i)
+                            if body then
+                                bodies[#bodies + 1] = body
+                            end
+                        end
+                    end
+                    local statics = square:getStaticMovingObjects()
+                    if statics then
+                        for i = 0, statics:size() - 1 do
+                            local obj = statics:get(i)
+                            if instanceof(obj, "IsoDeadBody") then
+                                bodies[#bodies + 1] = obj
+                            end
+                        end
+                    end
+                    if #bodies > 0 then
+                        for i = 1, #bodies do
+                            local body = bodies[i]
+                            pcall(square.removeCorpse, square, body, false)
+                            removedCorpses = removedCorpses + 1
                         end
                     end
                 end
 
-                local dead = square:getDeadBodys()
-                if dead then
-                    for i = dead:size() - 1, 0, -1 do
-                        local body = dead:get(i)
-                        body:removeFromWorld()
-                        body:removeFromSquare()
-                    end
-                end
-                local statics = square:getStaticMovingObjects()
-                if statics then
-                    for i = statics:size() - 1, 0, -1 do
-                        local obj = statics:get(i)
-                        if instanceof(obj, "IsoDeadBody") then
-                            obj:removeFromWorld()
-                            obj:removeFromSquare()
-                        end
-                    end
-                end
-                local objects = square:getObjects()
-                if objects then
-                    for i = objects:size() - 1, 0, -1 do
-                        local obj = objects:get(i)
-                        if instanceof(obj, "IsoDeadBody") then
-                            obj:removeFromWorld()
-                            obj:removeFromSquare()
-                        end
-                    end
-                end
-
-                if reason == "start" then
+                if removeWorldItems then
                     local worldItems = square:getWorldObjects()
                     if worldItems then
                         for i = worldItems:size() - 1, 0, -1 do
@@ -1755,7 +2120,9 @@ function Server.cleanupArena(reason)
                             end
                         end
                     end
+                end
 
+                if reason == "start" then
                     if x >= ax1 and x <= ax2 and y >= ay1 and y <= ay2 then
                         local objects = square:getObjects()
                         if objects then
@@ -1781,6 +2148,9 @@ function Server.cleanupArena(reason)
                 end
 
                 square:removeBlood(false, false)
+                if square.removeGrime then
+                    square:removeGrime()
+                end
             end
         end
     end
@@ -1826,22 +2196,10 @@ function Server.onPlayerDisconnect(player)
 end
 
 function Server.countLivePlayersInArena()
-    if not Config.isRectValid(Config.ZONES.ARENA) then
+    local padded = Server.getArenaPaddedRect()
+    if not padded then
         return Server.countLivePlayers()
     end
-    local rect = Config.ZONES.ARENA
-    local buffer = math.max(
-        Config.ARENA_ALIVE_BUFFER or 0,
-        Config.OUTSIDE_ARENA_BUFFER or 0,
-        Config.SPAWN_ARENA_BUFFER or 0
-    )
-    local padded = {
-        x1 = math.min(rect.x1, rect.x2) - buffer,
-        y1 = math.min(rect.y1, rect.y2) - buffer,
-        x2 = math.max(rect.x1, rect.x2) + buffer,
-        y2 = math.max(rect.y1, rect.y2) + buffer,
-        z = rect.z or 0,
-    }
     local players = getOnlinePlayers()
     if not players then
         players = IsoPlayer.getPlayers()
@@ -1858,6 +2216,128 @@ function Server.countLivePlayersInArena()
         end
     end
     return count
+end
+
+function Server.getArenaPaddedRect()
+    if not Config.isRectValid(Config.ZONES.ARENA) then
+        return nil
+    end
+    local rect = Config.ZONES.ARENA
+    local buffer = math.max(
+        Config.ARENA_ALIVE_BUFFER or 0,
+        Config.OUTSIDE_ARENA_BUFFER or 0,
+        Config.SPAWN_ARENA_BUFFER or 0
+    )
+    return {
+        x1 = math.min(rect.x1, rect.x2) - buffer,
+        y1 = math.min(rect.y1, rect.y2) - buffer,
+        x2 = math.max(rect.x1, rect.x2) + buffer,
+        y2 = math.max(rect.y1, rect.y2) + buffer,
+        z = rect.z or 0,
+    }
+end
+
+function Server.countPrepReady()
+    local padded = Server.getArenaPaddedRect()
+    if not padded then
+        return 0, 0
+    end
+    local players = getOnlinePlayers()
+    if not players then
+        players = IsoPlayer.getPlayers()
+    end
+    if not players then return 0, 0 end
+
+    local readyCount = 0
+    local eligibleCount = 0
+    for i = 0, players:size() - 1 do
+        local player = players:get(i)
+        if player and not player:isDead() and not player:isInvisible() then
+            if Zones.isPlayerInRect(player, padded) then
+                eligibleCount = eligibleCount + 1
+                local md = player:getModData()
+                if md and md.RoguePrepReady then
+                    readyCount = readyCount + 1
+                end
+            end
+        end
+    end
+    return readyCount, eligibleCount
+end
+
+function Server.countLobbyReady()
+    if not Config.isRectValid(Config.ZONES.SPAWN) then
+        return 0, 0
+    end
+    local players = getOnlinePlayers()
+    if not players then
+        players = IsoPlayer.getPlayers()
+    end
+    if not players then return 0, 0 end
+
+    local readyCount = 0
+    local eligibleCount = 0
+    for i = 0, players:size() - 1 do
+        local player = players:get(i)
+        if player and not player:isDead() and not player:isInvisible() then
+            if Zones.isPlayerInRect(player, Config.ZONES.SPAWN) then
+                eligibleCount = eligibleCount + 1
+                local md = player:getModData()
+                if md and md.RogueLobbyReady then
+                    readyCount = readyCount + 1
+                end
+            end
+        end
+    end
+    return readyCount, eligibleCount
+end
+
+function Server.allPlayersReadyInPrep()
+    local readyCount, eligibleCount = Server.countPrepReady()
+    return eligibleCount > 0 and readyCount >= eligibleCount
+end
+
+function Server.clearPrepReady()
+    local players = getOnlinePlayers()
+    if not players then
+        players = IsoPlayer.getPlayers()
+    end
+    if not players then return end
+    for i = 0, players:size() - 1 do
+        local player = players:get(i)
+        if player then
+            local md = player:getModData()
+            md.RoguePrepReady = false
+        end
+    end
+end
+
+function Server.setPrepReady(player, ready)
+    if not player or player:isDead() then return end
+    local md = player:getModData()
+    if Server.state.status == Server.STATE_LOBBY then
+        if not Config.isRectValid(Config.ZONES.SPAWN) or not Zones.isPlayerInRect(player, Config.ZONES.SPAWN) then
+            md.RogueLobbyReady = false
+            sendServerCommand(player, "Rogue", "prepReady", { ready = false, reason = "not_in_spawn" })
+            return
+        end
+        md.RogueLobbyReady = ready and true or false
+        sendServerCommand(player, "Rogue", "prepReady", { ready = md.RogueLobbyReady })
+        return
+    end
+    if Server.state.status ~= Server.STATE_PREP then
+        md.RoguePrepReady = false
+        sendServerCommand(player, "Rogue", "prepReady", { ready = false, reason = "not_prep" })
+        return
+    end
+    local padded = Server.getArenaPaddedRect()
+    if padded and not Zones.isPlayerInRect(player, padded) then
+        md.RoguePrepReady = false
+        sendServerCommand(player, "Rogue", "prepReady", { ready = false, reason = "not_in_arena" })
+        return
+    end
+    md.RoguePrepReady = ready and true or false
+    sendServerCommand(player, "Rogue", "prepReady", { ready = md.RoguePrepReady })
 end
 
 function Server.countZombiesInArena(bufferOverride)
@@ -1925,17 +2405,45 @@ function Server.startPrep(nowMs, isInitial)
     Server.state.currentTier = 1
     Server.state.waveStartedAtMs = 0
     Server.state.spawnNextAtMs = 0
+    Server.clearPrepReady()
     Server.applyArenaTier(1)
     Server.state.gatherNextAtMs = nowMs
     if isInitial then
+        Server.cleanupPlacedObjects()
         Server.state.runId = nowMs
-        Server.state.placedObjects = {}
     end
 
     if not isInitial then
         Server.broadcastAnnounce(string.format("PREP started for round %d.", Server.state.roundIndex))
     end
     log("State -> PREP round=" .. tostring(Server.state.roundIndex))
+
+    if not isInitial and Server.state.rewardEligibleIds then
+        local players = getOnlinePlayers()
+        if players then
+            for i = 0, players:size() - 1 do
+                local player = players:get(i)
+                local username = player and player.getUsername and player:getUsername() or nil
+                if player and username and Server.state.rewardEligibleIds[username]
+                    and not player:isDead() and not player:isInvisible() then
+                    local choices = buildRewardChoices(player)
+                    local md = player:getModData()
+                    md.RogueRewardRoundId = tonumber(Server.state.roundIndex or 0) or 0
+                    md.RogueRewardRunId = tonumber(Server.state.runId or 0) or 0
+                    md.RogueRewardChoices = choices
+                    md.RogueRewardRerollCount = 0
+                    sendServerCommand(player, "Rogue", "roundRewardChoices", {
+                        roundId = md.RogueRewardRoundId,
+                        runId = md.RogueRewardRunId,
+                        choices = choices,
+                        rerollCost = getRewardRerollCost(0, player),
+                        rerollCount = 0,
+                    })
+                end
+            end
+        end
+        Server.state.rewardEligibleIds = nil
+    end
 
     Server.gatherPlayersOutsideArena(nowMs, "prep-gather")
     local players = getOnlinePlayers()
@@ -2007,7 +2515,7 @@ function Server.allPlayersReadyInSpawn()
                 return false
             end
             local md = player:getModData()
-            if not md.RogueBuildId then
+            if not (md and md.RogueLobbyReady) then
                 return false
             end
         end
@@ -2037,12 +2545,17 @@ function Server.startWave(nowMs)
     Server.state.waveStartedAtMs = nowMs
     Server.state.killsThisWave = 0
     Server.state.noLiveArenaSinceMs = 0
+    Server.clearPrepReady()
+    Server.cleanupArena("zombies")
+    Server.state.cleanupAtMs = nowMs + 1500
+    Server.state.cleanupReason = "corpses"
     Server.state.killTarget = Config.getKillTarget(playersLive, Server.state.roundIndex)
     Server.state.spawnBudgetRemaining = Config.getSpawnBudget(Server.state.killTarget)
     Server.state.baseTier = Config.getBaseTier(Server.state.roundIndex, Server.state.maxRounds)
     Server.state.currentTier = Server.state.baseTier
     Server.state.overtimeAnnounced = false
     Server.state.overtimeSoonSent = false
+    Server.state.overtimeBudgetNextAtMs = 0
     Server.state.lastTierApplied = nil
     Server.state.beaconNextAtMs = nowMs
 
@@ -2092,6 +2605,10 @@ function Server.startPost(nowMs, isFailed)
     Server.state.gatherNextAtMs = nowMs
     Server.state.postFailed = isFailed == true
 
+    Server.cleanupArena("zombies")
+    Server.state.cleanupAtMs = nil
+    Server.state.cleanupReason = nil
+
     local durationSec = 0
     if Server.state.waveStartedAtMs and Server.state.waveStartedAtMs > 0 then
         durationSec = math.floor((nowMs - Server.state.waveStartedAtMs) / 1000)
@@ -2115,7 +2632,8 @@ function Server.startPost(nowMs, isFailed)
                 if player and not player:isInvisible() then
                     local alive = not player:isDead()
                     local soft = Config.getWaveSoftSeconds and Config.getWaveSoftSeconds(Server.state.killTarget) or (Config.WAVE_SOFT_SECONDS or 180)
-                    local reward = Economy.getWaveClearReward(Server.state.currentTier or 1, durationSec, alive, Server.state.roundIndex, soft)
+                    local rewardTier = Server.state.baseTier or Server.state.currentTier or 1
+                    local reward = Economy.getWaveClearReward(rewardTier, durationSec, alive, Server.state.roundIndex, soft)
                     if reward > 0 then
                         Economy.addCurrency(player, reward)
                         local round = Server.getRoundStats(player)
@@ -2123,23 +2641,6 @@ function Server.startPost(nowMs, isFailed)
                         local total = Server.getTotalStats(player)
                         total.totalCurrency = (total.totalCurrency or 0) + reward
                     end
-                end
-            end
-        end
-        if players then
-            for i = 0, players:size() - 1 do
-                local player = players:get(i)
-                if player and not player:isDead() and not player:isInvisible() then
-                    local choices = buildRewardChoices(player)
-                    local md = player:getModData()
-                    md.RogueRewardRoundId = tonumber(Server.state.roundIndex or 0) or 0
-                    md.RogueRewardRunId = tonumber(Server.state.runId or 0) or 0
-                    md.RogueRewardChoices = choices
-                    sendServerCommand(player, "Rogue", "roundRewardChoices", {
-                        roundId = md.RogueRewardRoundId,
-                        runId = md.RogueRewardRunId,
-                        choices = choices,
-                    })
                 end
             end
         end
@@ -2192,8 +2693,11 @@ function Server.finishRun(nowMs, isVictory)
     Server.state.noLiveArenaSinceMs = 0
     Server.state.readyStartAtMs = 0
     Server.startLobby(nowMs)
+    Server.cleanupArena("finish")
     Server.cleanupPlacedObjects()
     if isVictory then
+        Server.resetRoundStats()
+        Server.resetPlayersForNewRun("lobby-victory")
         Server.broadcastAnnounce("RUN COMPLETE!")
         log(string.format("State -> LOBBY (VICTORY) round=%d", Server.state.roundIndex))
     end
@@ -2220,23 +2724,7 @@ function Server.failWave(nowMs)
     Server.state.killsThisWave = 0
     Server.state.killTarget = 0
     Server.state.noLiveArenaSinceMs = 0
-
-    local players = getOnlinePlayers()
-    if players then
-        for i = 0, players:size() - 1 do
-            local player = players:get(i)
-            if player then
-                Server.resetPlayerForRun(player, "lobby-gather")
-                if Economy and Economy.setWallet then
-                    Economy.setWallet(player, Config.STARTING_CURRENCY or 0)
-                end
-                local key = Server.getPlayerKey(player)
-                if Server.roundStats and key and Server.roundStats[key] then
-                    Server.roundStats[key].gameCurrency = 0
-                end
-            end
-        end
-    end
+      Server.resetPlayersForNewRun("lobby-fail")
 
     local target = Config.PRISON_SPAWN_POINT
         or Config.teleportInPoint
@@ -2321,6 +2809,8 @@ function Server.onClientCommand(module, command, player, args)
         Server.stopFromCommand(player)
     elseif command == "status" then
         Server.sendStatus(player)
+    elseif command == "prepReady" then
+        Server.setPrepReady(player, args and args.ready)
     elseif command == "debug" then
         local flag = args and args.flag and string.lower(tostring(args.flag)) or ""
         Server.setDebugFlag(player, flag)
@@ -2345,6 +2835,54 @@ function Server.onClientCommand(module, command, player, args)
             Server.notify(player, msg or "Shop error.")
             sendServerCommand(player, "Rogue", "shopBuyResult", { ok = false, category = args and args.category })
         end
+    elseif command == "roundRewardReroll" then
+        if not player or player:isDead() then return end
+        local md = player:getModData()
+        local roundId = tonumber(args and args.roundId or -1) or -1
+        local runId = tonumber(args and args.runId or -1) or -1
+        if not md or not md.RogueRewardChoices then return end
+        if md.RogueRewardRoundId ~= roundId or md.RogueRewardRunId ~= runId then
+            sendServerCommand(player, "Rogue", "roundRewardRerollResult", { ok = false, error = "stale" })
+            return
+        end
+        local index = tonumber(args and args.pickIndex or 0) or 0
+        if index <= 0 or not md.RogueRewardChoices[index] then
+            sendServerCommand(player, "Rogue", "roundRewardRerollResult", { ok = false, error = "invalid" })
+            return
+        end
+        local count = tonumber(md.RogueRewardRerollCount or 0) or 0
+        if not canRewardReroll(count) then
+            sendServerCommand(player, "Rogue", "roundRewardRerollResult", { ok = false, error = "limit" })
+            return
+        end
+        local cost = getRewardRerollCost(count, player)
+        if not cost then
+            sendServerCommand(player, "Rogue", "roundRewardRerollResult", { ok = false, error = "disabled" })
+            return
+        end
+        if Rogue.Economy and Rogue.Economy.canAfford and not Rogue.Economy.canAfford(player, cost) then
+            sendServerCommand(player, "Rogue", "roundRewardRerollResult", { ok = false, error = "funds", cost = cost })
+            return
+        end
+        if Rogue.Economy and Rogue.Economy.spendCurrency then
+            Rogue.Economy.spendCurrency(player, cost)
+        end
+        md.RogueRewardRerollCount = count + 1
+        local choice = buildRewardChoiceForSlot(player, index, md.RogueRewardChoices)
+        if not choice then
+            sendServerCommand(player, "Rogue", "roundRewardRerollResult", { ok = false, error = "invalid" })
+            return
+        end
+        md.RogueRewardChoices[index] = choice
+        sendServerCommand(player, "Rogue", "roundRewardChoices", {
+            roundId = md.RogueRewardRoundId,
+            runId = md.RogueRewardRunId,
+            choices = md.RogueRewardChoices,
+            rerollCost = getRewardRerollCost(md.RogueRewardRerollCount, player),
+            rerollCount = md.RogueRewardRerollCount,
+        })
+        sendServerCommand(player, "Rogue", "roundRewardRerollResult", { ok = true, cost = cost })
+        Server.sendScoreToPlayer(player)
     elseif command == "roundRewardPick" then
         if not player or player:isDead() then return end
         local md = player:getModData()
@@ -2364,6 +2902,7 @@ function Server.onClientCommand(module, command, player, args)
         local ok, applied = applyRewardChoice(player, choice, roundId)
         if ok then
             md.RogueRewardChoices = nil
+            md.RogueRewardRerollCount = nil
             sendServerCommand(player, "Rogue", "roundRewardApplied", { ok = true, applied = applied })
         else
             sendServerCommand(player, "Rogue", "roundRewardApplied", { ok = false, error = applied })
@@ -2380,6 +2919,76 @@ function Server.onClientCommand(module, command, player, args)
         if not category or not sprite or not key then
             Server.notify(player, "Missing shop data.")
             return
+        end
+        local function squareHasSprite(square, spriteName)
+            if not square or not spriteName or not square.getObjects then return false end
+            local objs = square:getObjects()
+            if not objs then return false end
+            for i = 0, objs:size() - 1 do
+                local obj = objs:get(i)
+                if obj and obj.getSprite then
+                    local spr = obj:getSprite()
+                    if spr and spr:getName() == spriteName then
+                        return true
+                    end
+                end
+            end
+            return false
+        end
+        local function addShopTileIfMissing(keyStr, spriteName)
+            if not spriteName or spriteName == "" then
+                log(string.format("Shop tile missing sprite key=%s", tostring(keyStr)))
+                return
+            end
+            local x, y, z = string.match(tostring(keyStr), "([^,]+),([^,]+),([^,]+)")
+            x = tonumber(x)
+            y = tonumber(y)
+            z = tonumber(z)
+            if not x or not y or not z then
+                log(string.format("Shop tile invalid key=%s sprite=%s", tostring(keyStr), tostring(spriteName)))
+                return
+            end
+            local square = getCell() and getCell():getGridSquare(x, y, z) or nil
+            if not square then
+                log(string.format("Shop tile missing square at %d,%d,%d sprite=%s", x, y, z, tostring(spriteName)))
+                return
+            end
+            if squareHasSprite(square, spriteName) then
+                log(string.format("Shop tile already present at %d,%d,%d sprite=%s", x, y, z, tostring(spriteName)))
+                return
+            end
+            local sprite = getSprite and getSprite(spriteName) or nil
+            if not sprite then
+                log(string.format("Shop tile missing sprite def at %d,%d,%d sprite=%s", x, y, z, tostring(spriteName)))
+                return
+            end
+            local props = sprite.getProperties and sprite:getProperties() or nil
+            local isFloor = props and props.has and props:has(IsoFlagType.solidfloor) or false
+            local obj = nil
+            if isFloor and square.addFloor then
+                obj = square:addFloor(spriteName)
+            else
+                local ok, created = pcall(IsoObject.new, getCell(), square, sprite)
+                if ok then
+                    obj = created
+                end
+                if obj then
+                    square:AddTileObject(obj)
+                end
+            end
+            if not obj then
+                log(string.format("Shop tile create failed at %d,%d,%d sprite=%s floor=%s",
+                    x, y, z, tostring(spriteName), tostring(isFloor)))
+                return
+            end
+            if obj.transmitCompleteItemToClients then
+                obj:transmitCompleteItemToClients()
+            end
+            if square.RecalcAllWithNeighbours then
+                square:RecalcAllWithNeighbours(true)
+            end
+            log(string.format("Shop tile added at %d,%d,%d sprite=%s floor=%s",
+                x, y, z, tostring(spriteName), tostring(isFloor)))
         end
         local data = ModData.getOrCreate("RoguelitynoShopObjects")
         data.entries = data.entries or {}
@@ -2415,6 +3024,7 @@ function Server.onClientCommand(module, command, player, args)
         end
         ModData.add("RoguelitynoShopObjects", data)
         ModData.transmit("RoguelitynoShopObjects")
+        addShopTileIfMissing(keyStr, spriteStr)
         Server.notify(player, "Shop set: " .. tostring(nameStr))
     elseif command == "removeShop" then
         if not Server.isAdmin(player) then
@@ -2704,12 +3314,23 @@ function Server.handleOutsideArena(now)
             end
         end
     end
+
+    debugLog(
+        "Cleanup arena reason=" .. tostring(reason)
+            .. " zombies=" .. tostring(removedZombies)
+            .. " corpses=" .. tostring(removedCorpses)
+    )
 end
 
 function Server.onTick()
     local now = getTimestampMs()
     if now - (Server.state.lastTickMs or 0) < 1000 then return end
     Server.state.lastTickMs = now
+    if Server.state.cleanupAtMs and now >= Server.state.cleanupAtMs then
+        Server.cleanupArena(Server.state.cleanupReason or "corpses")
+        Server.state.cleanupAtMs = nil
+        Server.state.cleanupReason = nil
+    end
 
     local players = getOnlinePlayers()
     if players then
@@ -2777,6 +3398,10 @@ function Server.onTick()
                 Server.state.gatherNextAtMs = now + 5000
                 Server.gatherPlayersOutsideArena(now, "prep-gather")
             end
+            if Server.allPlayersReadyInPrep() then
+                Server.startWave(now)
+                return
+            end
             if elapsed >= (Config.PREP_SECONDS or 45) then
                 Server.startWave(now)
             end
@@ -2820,6 +3445,23 @@ function Server.onTick()
             local step = Config.TIER_ESCALATE_EVERY_SECONDS or 30
             local warnBefore = tonumber(Config.ROUND_OVERTIME_SOON_SECONDS) or 0
             local budgetLeft = tonumber(Server.state.spawnBudgetRemaining or 0) or 0
+            local remainingForLog = nil
+            if (Server.state.killTarget or 0) > 0 then
+                local present = Server.countZombiesInArena(0)
+                if present ~= nil then
+                    remainingForLog = math.max(0, (Server.state.killTarget or 0) - (Server.state.killsThisWave or 0) - present)
+                end
+            end
+            if remainingForLog ~= nil then
+                if remainingForLog <= 0 then
+                    Server.state.spawnBudgetRemaining = 0
+                else
+                    if budgetLeft > remainingForLog then
+                        Server.state.spawnBudgetRemaining = remainingForLog
+                        budgetLeft = remainingForLog
+                    end
+                end
+            end
             if budgetLeft <= 0 and warnBefore > 0 and soft > warnBefore and not Server.state.overtimeSoonSent then
                 if elapsed >= (soft - warnBefore) then
                     Server.state.overtimeSoonSent = true
@@ -2837,7 +3479,7 @@ function Server.onTick()
                     Server.state.currentTier = newTier
                     local runnerMap = Config.TIER_RUNNER_PCT or {}
                     local runnerPct = tonumber(runnerMap[newTier]) or 0
-                    local pct = math.floor((runnerPct * 100) + 0.5)
+                    local pct = math.floor(tonumber(runnerPct or 0) + 0.5)
                     Server.broadcastAnnounce(string.format("Sprinter: %d%%", pct))
                 end
                 local remaining = (Server.state.killTarget or 0) - (Server.state.killsThisWave or 0)
@@ -2846,8 +3488,7 @@ function Server.onTick()
                     local present = Server.countZombiesInArena(buffer)
                     local deficit = remaining - present
                     if deficit > 0 then
-                        Server.state.spawnBudgetRemaining = (Server.state.spawnBudgetRemaining or 0) + deficit
-                        debugLog("Overtime refill budget +" .. tostring(deficit) .. " remaining=" .. tostring(remaining) .. " present=" .. tostring(present))
+                        -- No extra budget: spawn only what the initial budget allows.
                     end
                 end
             end
@@ -2865,6 +3506,9 @@ function Server.onTick()
                     Server.state.spawnBudgetRemaining or 0,
                     Server.state.currentTier or 1
                 ))
+                if remainingForLog ~= nil then
+                    log(string.format("WAVE remaining=%d", remainingForLog))
+                end
             end
         elseif Server.state.status == Server.STATE_POST then
             local elapsed = math.floor((now - (Server.state.stateStartedAtMs or now)) / 1000)
@@ -2876,6 +3520,27 @@ function Server.onTick()
                 if (Server.state.roundIndex or 0) >= (Server.state.maxRounds or 0) and not Server.state.postFailed then
                     Server.finishRun(now, true)
                     return
+                end
+                if not Server.state.postFailed then
+                    local eligible = {}
+                    local players = getOnlinePlayers()
+                    local arenaOk = Config.isRectValid(Config.ZONES.ARENA)
+                    if players then
+                        for i = 0, players:size() - 1 do
+                            local player = players:get(i)
+                            if player and not player:isDead() and not player:isInvisible() then
+                                if not arenaOk or Zones.isPlayerInRect(player, Config.ZONES.ARENA) then
+                                    local username = player.getUsername and player:getUsername() or nil
+                                    if username then
+                                        eligible[username] = true
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    Server.state.rewardEligibleIds = eligible
+                else
+                    Server.state.rewardEligibleIds = nil
                 end
                 Server.state.roundIndex = Server.state.roundIndex + 1
                 Server.startPrep(now, false)
@@ -2916,6 +3581,11 @@ function Server.onWeaponHitCharacter(attacker, target, weapon, damage)
     if not attacker or not target then return end
     if not instanceof(attacker, "IsoPlayer") then return end
     if not instanceof(target, "IsoZombie") then return end
+    if Rogue.WeaponMods and weapon then
+        Rogue.WeaponMods.applyStatsOnce(weapon, {
+            token = tostring(Server.state.runId or 0) .. ":" .. tostring(Server.state.currentTier or 0),
+        })
+    end
     local amount = tonumber(damage)
     if not amount then return end
     local round = Server.getRoundStats(attacker)
@@ -3003,7 +3673,8 @@ function Server.onZombieDead(zombie)
         total.totalKills = (total.totalKills or 0) + 1
 
         if Economy then
-            local reward = Economy.getKillReward(Server.state.currentTier or 1)
+            local rewardTier = Server.state.baseTier or Server.state.currentTier or 1
+            local reward = Economy.getKillReward(rewardTier)
             Economy.addCurrency(killer, reward)
             round.gameCurrency = (round.gameCurrency or 0) + reward
             total.totalCurrency = (total.totalCurrency or 0) + reward

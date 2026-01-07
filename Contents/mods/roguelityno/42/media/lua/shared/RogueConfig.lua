@@ -27,79 +27,97 @@ Config.TELEPORT_COOLDOWN_MS = 2000
 
 Config.LOBBY_TIERZONE_NAME = "ROGUESPAWN"
 
-Config.PREP_SECONDS = 15
+Config.PREP_SECONDS = 180
+Config.PREP_COUNTDOWN_SECONDS = 20.6
 Config.WAVE_SOFT_SECONDS = 180
-Config.WAVE_SOFT_MIN_SECONDS = 180
+Config.WAVE_SOFT_MIN_SECONDS = 300
 Config.waveSoftPerKill = 0.5
-Config.POST_SECONDS = 12
+Config.POST_SECONDS = 5
 Config.TIER_ESCALATE_EVERY_SECONDS = 30
-
-Config.baseKillsPerPlayer = 30
+--NUMERO DI ZOPPI BASE PER PLAYER 
+Config.baseKillsPerPlayer = 1
 Config.killsPerRoundSlope = 0.25
 Config.spawnBudgetBuffer = 1.0
+Config.SPAWN_GROUP_MULT = 1.0
 Config.DIFFICULTY_LEVEL = 2
 Config.DIFFICULTY_PRESETS = {
     {
         id = 1,
         labelKey = "UI_rogue_difficulty_easy",
-        baseKillsPerPlayer = 15,
+        baseKillsPerPlayer = 10,
         killsPerRoundSlope = 0.10,
-        waveSoftPerKill = 1.0,
-        runnerPctByTier = { 0, 3, 5, 10, 15, 30 },
+        waveSoftPerKill = 2.5,
+        spawnIntervalSeconds = 7,
+        spawnGroupMult = 0.7,
+        runnerPctByTier = { 0, 0, 1, 2, 3, 4 },
     },
     {
         id = 2,
         labelKey = "UI_rogue_difficulty_balanced",
-        baseKillsPerPlayer = 20,
+        baseKillsPerPlayer = 15,
         killsPerRoundSlope = 0.15,
-        waveSoftPerKill = 0.8,
-        runnerPctByTier = { 3, 5, 10, 15, 20, 40 },
+        waveSoftPerKill = 2.5,
+        spawnIntervalSeconds = 5.5,
+        spawnGroupMult = 0.8,
+        runnerPctByTier = { 0, 3, 5, 10, 15, 20 },
     },
+
     {
         id = 3,
         labelKey = "UI_rogue_difficulty_hard",
-        baseKillsPerPlayer = 30,
-        killsPerRoundSlope = 0.20,
-        waveSoftPerKill = 0.6,
-        runnerPctByTier = { 5, 10, 15, 20, 25, 50 },
+        baseKillsPerPlayer = 20,
+        killsPerRoundSlope = 0.25,
+        waveSoftPerKill = 2.2,
+        spawnIntervalSeconds = 5,
+        spawnGroupMult = 1,
+        runnerPctByTier = { 5, 10, 15, 20, 25, 40 },
     },
+    
     {
         id = 4,
         labelKey = "UI_rogue_difficulty_extreme",
-        baseKillsPerPlayer = 40,
-        killsPerRoundSlope = 0.25,
-        waveSoftPerKill = 0.4,
+        baseKillsPerPlayer = 25,
+        killsPerRoundSlope = 0.30,
+        waveSoftPerKill = 2,
+        spawnIntervalSeconds = 4.5,
+        spawnGroupMult = 1.3,
         runnerPctByTier = { 5, 10, 15, 20, 25, 50 },
     },
+    
     {
         id = 5,
         labelKey = "UI_rogue_difficulty_executioner",
-        baseKillsPerPlayer = 50,
+        baseKillsPerPlayer = 15,
         killsPerRoundSlope = 0.50,
-        waveSoftPerKill = 0.3,
+        waveSoftPerKill = 1.5,
+        spawnIntervalSeconds = 4,
+        spawnGroupMult = 1.7,
         runnerPctByTier = { 10, 20, 30, 40, 50, 100 },
     },
+
 }
 
 Config.OUTSIDE_WARN_SECONDS = 0
-Config.OUTSIDE_DAMAGE_AFTER_SECONDS = 5
-Config.OUTSIDE_KILL_AFTER_SECONDS = 10
+Config.OUTSIDE_DAMAGE_AFTER_SECONDS = 2
+Config.OUTSIDE_KILL_AFTER_SECONDS = 4
 Config.OUTSIDE_ARENA_BUFFER = 2
 Config.OUTSIDE_ARENA_MAX_BUFFER = 20
 Config.OUTSIDE_IGNORE_TIERZONE = "ROGUESPAWN"
+Config.OUTSIDE_SOUND_LOOP_MS = 3000
 
 Config.SPRINTER_ADJUST_INTERVAL_SECONDS = 10
 Config.SPRINTER_ADJUST_DIVISOR = 3
 
 Config.SPAWN_INTERVAL_SECONDS = 8
-Config.SPAWN_GROUP_BASE = 4
-Config.SPAWN_GROUP_PER_PLAYER = 2
+Config.SPAWN_GROUP_BASE = 1
+Config.SPAWN_GROUP_PER_PLAYER = 1
 Config.SPAWN_GROUP_TIER_BONUS = 1
 Config.SPAWN_GROUP_MAX = 40
-Config.SPAWN_FIXED_POINT_COUNT = 16
-Config.SPAWN_MAX_PER_POINT_PER_MINUTE = 6
-Config.SPAWN_MAX_PER_MIN_BASE = 60
-Config.SPAWN_MAX_PER_MIN_PER_PLAYER_SQRT = 30
+Config.SPAWN_GROUP_DIVISOR = 2
+Config.SPAWN_FIXED_POINT_COUNT = 32
+Config.SPAWN_MAX_PER_POINT_PER_MINUTE = 0
+Config.SPAWN_MAX_PER_MIN_BASE = 0
+Config.SPAWN_MAX_PER_MIN_PER_PLAYER_SQRT = 0
 Config.SPAWN_ARENA_BUFFER = 5
 Config.ARENA_ALIVE_BUFFER = 12
 Config.ARENA_KILL_BUFFER = 12
@@ -108,10 +126,10 @@ Config.READY_TO_PREP_DELAY_MS = 3000
 
 -- Arena beacon (server-side zombie attraction).
 Config.BEACON_ENABLED = true
-Config.BEACON_INTERVAL_SECONDS = 10
-Config.BEACON_EXTRA_RADIUS = 10
+Config.BEACON_INTERVAL_SECONDS = 3
+Config.BEACON_EXTRA_RADIUS = 15
 Config.BEACON_TIER_STEP = 0
-Config.BEACON_VOLUME = 50
+Config.BEACON_VOLUME = 70
 
 Config.MAX_TIER = 6
 Config.REWARD_CAP_TIER = 4
@@ -129,10 +147,10 @@ Config.KILL_CURRENCY_BASE = 1
 Config.KILL_CURRENCY_BY_TIER = {
     [1] = { min = 0.5, max = 1 },
     [2] = { min = 0.6, max = 1.1 },
-    [3] = { min = 0.7, max = 1.2 },
-    [4] = { min = 1, max = 2 },
-    [5] = { min = 1.2, max = 2.5 },
-    [6] = { min = 2, max = 5 },
+    [3] = { min = 0.7, max = 1.3 },
+    [4] = { min = 1, max = 1.5 },
+    [5] = { min = 1.2, max = 1.7 },
+    [6] = { min = 2, max = 3 },
 }
 
 Config.WAVE_CLEAR_BONUS_BASE = 10
@@ -142,7 +160,7 @@ Config.SLOW_CLEAR_MULTIPLIER = 0.75
 Config.TIER_CLEAR_BONUS_MULT = 0.1
 Config.WAVE_CLEAR_EARLY_BONUS_PCT = 0.15
 Config.WAVE_CLEAR_ALIVE_BONUS_PCT = 0.15
-Config.DEATH_CURRENCY_LOSS_PCT = 0.5
+Config.DEATH_CURRENCY_LOSS_PCT = 0.2
 
 Config.STATS_SNAPSHOT_MINUTES = 5
 
@@ -150,10 +168,34 @@ Config.SHOP_CATEGORY_LABELS = {
     medical = "UI_rogue_shop_medical",
     weapons = "UI_rogue_shop_weapons",
     food = "UI_rogue_shop_food",
+    supplies = "UI_rogue_shop_supplies",
     drugs = "UI_rogue_shop_drugs",
     perks = "UI_rogue_shop_perks",
     firearms = "UI_rogue_shop_firearms",
     builds = "UI_rogue_shop_builds",
+}
+
+Config.SHOP_SUBCATEGORIES = {
+    weapons = {
+        { id = "all", labelKey = "UI_rogue_shop_sub_all" },
+        { id = "axes", labelKey = "UI_rogue_shop_sub_axes" },
+        { id = "blunt", labelKey = "UI_rogue_shop_sub_blunt" },
+        { id = "blades", labelKey = "UI_rogue_shop_sub_blades" },
+        { id = "spears", labelKey = "UI_rogue_shop_sub_spears" },
+    },
+    firearms = {
+        { id = "all", labelKey = "UI_rogue_shop_sub_all" },
+        { id = "guns", labelKey = "UI_rogue_shop_sub_guns" },
+        { id = "ammo", labelKey = "UI_rogue_shop_sub_ammo" },
+        { id = "attachments", labelKey = "UI_rogue_shop_sub_attachments" },
+    },
+    supplies = {
+        { id = "all", labelKey = "UI_rogue_shop_sub_all" },
+        { id = "misc", labelKey = "UI_rogue_shop_sub_misc" },
+        { id = "lighting", labelKey = "UI_rogue_shop_sub_lighting" },
+        { id = "container", labelKey = "UI_rogue_shop_sub_container" },
+        { id = "building", labelKey = "UI_rogue_shop_sub_building" },
+    },
 }
 
 Config.SOUNDS = {
@@ -164,6 +206,7 @@ Config.SOUNDS = {
     build_buy_ok = { "rogue_build_buy_ok_1" },
     build_buy_fail = { "rogue_build_buy_fail_1" },
     round_prep = { "rogue_round_prep_1", "rogue_round_prep_2" },
+    prep_countdown = { "rogue_prep_countdown" },
     round_start = { "rogue_round_start_1", "rogue_round_start_2" },
     round_clear = { "rogue_round_clear_1" },
     round_overtime_soon = { "rogue_round_overtime_soon_1" },
@@ -171,6 +214,8 @@ Config.SOUNDS = {
     round_overtime_announce = { "rogue_round_overtime_announce_1" },
     bogdano_drink = { "BogdanoDrinkBurp" },
     serum_use = { "FullRestoreSerumSound" },
+    out_of_bounds = { "out_of_bounds_geiger" },
+    reward_reroll = { "reroll1", "reroll2" },
 }
 
 Config.ROUND_OVERTIME_LOOP_MS = 29567
@@ -215,11 +260,12 @@ Config.UI_FONT_MEDIUM = "roguefont16"
 Config.UI_FONT_LARGE = "roguefont18"
 Config.UI_FONT_CUSTOM_PATH = "common/media/fonts/roguefont12.fnt"
 
--- Item icons used in shop panels (set to valid item IDs).
+-- Item icons used in shop panels.
 Config.SHOP_CATEGORY_ICON_ITEM = {
     medical = "Base.Bandage",
     weapons = "Base.BaseballBat",
     food = "Base.Apple",
+    supplies = "Base.Battery",
     drugs = "Base.Pills",
     perks = "Base.SheetPaper2",
     firearms = "Base.Pistol",
@@ -241,6 +287,7 @@ Config.UI_SHOP_BG_TEX_BY_CATEGORY = {
     medical = "media/textures/ui/medicshopbg.png",
     weapons = "media/textures/ui/weaponshopbg.png",
     food = "media/textures/ui/supplyshopbg.png",
+    supplies = "media/textures/ui/supplyshopbg.png",
     drugs = "media/textures/ui/secretshopbg.png",
     perks = "media/textures/ui/secretshopbg.png",
     firearms = "media/textures/ui/gunshopbg.png",
@@ -249,26 +296,37 @@ Config.UI_SHOP_BG_TEX_BY_CATEGORY = {
 Config.UI_SHOP_PAD = 12
 Config.SHOP_UI_MIN_ROWS = 10
 
-Config.SHOP_MARKER_SIZE = 0.65
+Config.SHOP_MARKER_SIZE = 1.3
+Config.SHOP_INTERACT_RADIUS = 1
 Config.SHOP_MARKER_TEX_BY_CATEGORY = {}
 Config.SHOP_MARKER_COLOR_BY_CATEGORY = {
     medical = { r = 0.2, g = 1.0, b = 0.6 },
     weapons = { r = 1.0, g = 0.2, b = 0.2 },
     food = { r = 1.0, g = 0.8, b = 0.2 },
+    supplies = { r = 0.95, g = 0.9, b = 0.3 },
     drugs = { r = 0.7, g = 0.3, b = 1.0 },
     perks = { r = 0.8, g = 0.4, b = 0.1 },
     firearms = { r = 1.0, g = 0.5, b = 0.3 },
     builds = { r = 1.0, g = 0.8, b = 0.2 },
 }
+Config.SHOP_TILE_GLOW = {
+    enabled = true,
+    radius = 6,
+    colorBoost = 0.25,
+}
+Config.ARENA_BORDER_MARKER_SIZE = 0.28
+Config.ARENA_BORDER_MARKER_ALPHA = 0.65
+Config.ARENA_BORDER_MARKER_COLOR = { r = 0.9, g = 0.05, b = 0.05 }
 
 Config.SHOP_SPRITES = {
-    medical = { "placeholder_medical_sprite" },
-    weapons = { "placeholder_weapons_sprite" },
-    food = { "placeholder_food_sprite" },
-    drugs = { "placeholder_drugs_sprite" },
-    perks = { "placeholder_perks_sprite" },
-    firearms = { "placeholder_firearms_sprite" },
-    builds = { "placeholder_builds_sprite" },
+    medical = { "location_community_medical_01_89" },
+    weapons = { "location_military_generic_01_1" },
+    food = { "location_shop_zippee_01_56" },
+    supplies = { "industry_02_50" },
+    drugs = { "location_entertainment_gallery_02_56" },
+    perks = {},
+    firearms = { "location_military_generic_01_22" },
+    builds = { "location_community_cemetary_01_11" },
 }
 
 Config.BOGDANO_BOTTLES = {
@@ -299,6 +357,24 @@ Config.BOGDANO_RESULT = "Base.SmashedBottle"
 Config.BOGDANO_SOUND = "BogdanoDrinkBurp"
 
 Config.REWARD_CHOICE_COUNT = 3
+Config.REWARD_REROLL_BASE_COST = 5
+Config.REWARD_REROLL_STEP_COST = 5
+Config.REWARD_REROLL_MAX = 0
+Config.REWARD_REROLL_LEGENDA_DISCOUNT = 5
+Config.BUILD_ID_LEGENDA = Config.BUILD_ID_LEGENDA or "roguelityno:la_leggenda"
+Config.REWARD_LEGENDA_RARITY_BONUS = {
+    common = -16,
+    rare = 10,
+    epic = 5,
+    legendary = 1,
+}
+Config.MINIMAP_LAST_ZOMBIE_THRESHOLD = 10
+Config.MINIMAP_LAST_ZOMBIE_INTERVAL_MS = 1000
+Config.BUILD_ID_BOGDANO = Config.BUILD_ID_BOGDANO or "roguelityno:igor"
+Config.VITAMINS_ENDURANCE_CHANGE_RANGE = { min = 0.05, max = 0.1 }
+Config.BOGDANO_ENDURANCE_CHANGE_RANGE = { min = 0.5, max = 1.0 }
+Config.SHOP_MAX_STOCK_PER_PLAYER = 2
+Config.SHOP_MAX_STOCK_MIN = 10
 Config.REWARD_PANEL_TEX = {
     common = "media/textures/ui/reward_panel_common.png",
     uncommon = "media/textures/ui/reward_panel_uncommon.png",
@@ -306,186 +382,529 @@ Config.REWARD_PANEL_TEX = {
     epic = "media/textures/ui/reward_panel_epic.png",
     legendary = "media/textures/ui/reward_panel_legendary.png",
 }
+Config.REWARD_RARITY_ICON_TEX = {
+    common = "media/textures/ui/common_symbol.png",
+    uncommon = "media/textures/ui/uncommon_symbol.png",
+    rare = "media/textures/ui/rare_symbol.png",
+    epic = "media/textures/ui/epic_symbol.png",
+    legendary = "media/textures/ui/legendary_symbol.png",
+}
+Config.REWARD_TYPE_ICON_TEX = {
+    currency = "media/textures/ui/wallet_icon.png",
+    armor = "media/textures/ui/skills/blacksmith.png",
+    weapon_longblade = "media/textures/ui/skills/longblade.png",
+    weapon_blunt = "media/textures/ui/skills/blunt.png",
+    weapon_smallblade = "media/textures/ui/skills/smallblade.png",
+    weapon_smallblunt = "media/textures/ui/skills/smallblunt.png",
+    weapon_axe = "media/textures/ui/skills/axe.png",
+    weapon_spear = "media/textures/ui/skills/spear.png",
+    firearm = "media/textures/ui/skills/aiming.png",
+    ammo = "media/textures/ui/skills/reloading.png",
+    misc = "media/textures/ui/Trait_lucky.png",
+    drug = "media/textures/ui/Item_Droga5.png",
+    heal = "media/textures/ui/Item_FullRestoreSerum_icon.png",
+    skill = "media/textures/ui/skills/maintenance.png",
+    skills = "media/textures/ui/skills/strength.png",
+    xpBoost = "media/textures/ui/skills/fitness.png",
+    trait = "media/textures/ui/Trait_fastlearner.png",
+    blessing = "media/textures/ui/Trait_lucky.png",
+}
 
 Config.REWARD_RARITY_WEIGHTS = {
-    early = { common = 70, uncommon = 25, rare = 5, epic = 0, legendary = 0 },
-    late = { common = 20, uncommon = 30, rare = 30, epic = 15, legendary = 5 },
-    clamp = { commonMin = 10, epicMax = 25, legendaryMax = 8 },
+    early = { common = 60, uncommon = 25, rare = 12, epic = 2.75, legendary = 0.25 },
+    late = { common = 30, uncommon = 35, rare = 25, epic = 8, legendary = 2 },
+    clamp = { commonMin = 10, epicMax = 20, legendaryMax = 5 },
     tierBump = {
         tier5 = { rare = 2, epic = 2, common = -4 },
         tier6 = { epic = 3, legendary = 2, common = -5 },
     },
 }
 
+
+--da configurare per slot specifici
 Config.REWARD_CATEGORY_RULES = {
-    { slot = 1, types = { "currency", "heal", "item" }, maxRarity = "uncommon" },
-    { slot = 2, types = { "trait", "skill", "xpBoost" }, minRarity = "uncommon", maxRarity = "rare" },
-    { slot = 3, types = { "blessing", "armor", "drug", "item", "currency" }, minRarity = "rare" },
 }
+
+-- Reward entries (server authoritative).
+-- Shared fields:
+--   type = "currency"|"item"|"heal"|"drug"|"trait"|"skill"|"skills"|"xpBoost"
+--   buildIds = { "mod:buildId", ... }  -- optional allowlist; reward only for these builds
+--   allBuilds = true                  -- optional; bypass build filtering and auto-mapping
+-- type="currency": amount
+-- type="item"/"heal"/"drug": id (Module.Item), qty
+-- type="trait": id (TraitId without "base:"), toggles add/remove
+-- type="skill": skill (PerkId string), levels (int)
+-- type="skills": skills = { { id="PerkId", levels=int }, ... }
+-- type="xpBoost": skill (PerkId string), amount (mult), durationRounds (int)
 Config.REWARD_POOLS = {
-    common = {
-        -- { type = "currency", amount = 10 },
-        -- { type = "xpBoost", skill = "Axe", amount = 1.2, durationRounds = 2 },
-        { type = "xpBoost", skill = "SmallBlunt", amount = 1.2, durationRounds = 2 },
-        { type = "xpBoost", skill = "Blunt", amount = 1.2, durationRounds = 2 },
-        { type = "skill", skill = "Maintenance", levels = 1 },
-        { type = "skill", skill = "Nimble", levels = 1 },
-        { type = "skill", skill = "Axe", levels = 2 },        
-        -- { type = "item", id = "Base.Bandage", qty = 2 },
-        -- { type = "heal", id = "Rogue.FullRestoreSerum", qty = 1 },
-    },
-    uncommon = {
-        { type = "skills", skills = { { id = "Sprinting", levels = 2 }, { id = "Nimble", levels = 1 } } },
-        { type = "currency", amount = 18 },
-        { type = "item", id = "Base.WaterBottle", qty = 1 },
-        { type = "skill", skill = "Maintenance", levels = 1 },
-    },
-    rare = {
-        { type = "currency", amount = 28 },
-        { type = "item", id = "Base.HuntingKnife", qty = 1 },
-        { type = "xpBoost", skill = "Axe", amount = 1.2, durationRounds = 2 },
-    },
-    epic = {
-        { type = "currency", amount = 40 },
-        { type = "item", id = "Base.Axe", qty = 1 },
-        { type = "trait", id = "NightVision" },
-    },
-    legendary = {
-        { type = "currency", amount = 60 },
-        { type = "item", id = "Base.AssaultRifle", qty = 1 },
-        { type = "blessing", id = "rogue:blessing_damage", cap = 3 },
-    },
+
+common = {
+    -- currency
+    { type="currency", amount=10 },
+    { type="currency", amount=15 },
+
+    -- single skill (micro progress)
+    { type="skill", skill="Nimble", levels=1 },
+    { type="skill", skill="Sprinting", levels=1 },
+    -- { type="skill", skill="Maintenance", levels=1 },
+    { type="skill", skill="Blunt", levels=1 },
+    { type="skill", skill="SmallBlunt", levels=1 },
+    { type="skill", skill="LongBlade", levels=1 },
+    { type="skill", skill="SmallBlade", levels=1 },
+    { type="skill", skill="Axe", levels=1 },
+
+    -- small xp boost (short)
+    -- { type="xpBoost", skill="Maintenance", amount=1.25, durationRounds=2 },
+    -- { type="xpBoost", skill="Nimble", amount=1.25, durationRounds=2 },
+    -- { type="xpBoost", skill="Sprinting", amount=1.25, durationRounds=2 },
+    -- { type="xpBoost", skill="Blunt", amount=1.25, durationRounds=2 },
+    -- { type="xpBoost", skill="SmallBlade", amount=1.25, durationRounds=2 },
+
+    -- utility items
+    { type="item", id="Base.Bandage", qty=2 },
+    { type="item", id="Base.AlcoholWipes", qty=1 },
+    { type="item", id="Base.Pills", qty=1 },
+    { type="item", id="Base.PillsBeta", qty=1 },
+    { type="item", id="Base.Battery", qty=2 },
+
+    { type="item", id="Base.Codpiece_Metal", qty=1 },
+
+
+    { type="item", id="Base.TableLeg_Sawblade", qty=1 },
+    { type="item", id="Base.TennisRacket", qty=1 },
+    { type="item", id="Base.MetalPipe", qty=1 },
+    { type="item", id="Base.SmallKnife", qty=2 },
+
+    -- melee starter goodies
+
+    -- build specific small flavor
+    { type="item", id="Base.KnifeButterfly", qty=2, buildIds={ "roguelityno:bimbolama" } },
+    
+    { type="item", id="Base.AxeStone", qty=1, buildIds={ "roguelityno:uomo_ascia" } },
+    
+    { type="item", id="Base.Plank", qty=5, buildIds={ "roguelityno:uomo_sasso" } },
+    
+    { type="item", id="Base.Bullets38Box", qty=1, buildIds={ "roguelityno:americano" } },
+    
+    { type="item", id="Base.Cigar", qty=1, buildIds={ "roguelityno:igor" } },
+
+    -- drugs (common: low tiers)
+    { type="drug", id="Drogatyno.Droga1", qty=1 },
+
+    --     { type="skills", skills={ {id="Sprinting",levels=1},{id="Nimble",levels=1} } },
+    -- { type="skills", skills={ {id="SmallBlade",levels=1},{id="Maintenance",levels=1} } },
+    -- { type="skills", skills={ {id="SmallBlunt",levels=1},{id="Maintenance",levels=1} } },
+    -- { type="skills", skills={ {id="Axe",levels=1},{id="Maintenance",levels=1} } },
+    --     { type="trait", id="Brave" },
+
+},
+
+uncommon = {
+    -- currency
+    { type="currency", amount=25 },
+    { type="currency", amount=30 },
+
+    -- multi-skill combos (uncommon feel good)
+    { type="skills", skills={ {id="Sprinting",levels=1},{id="Nimble",levels=1} } },
+    { type="skills", skills={ {id="SmallBlade",levels=1},{id="Maintenance",levels=1} } },
+    { type="skills", skills={ {id="SmallBlunt",levels=1},{id="Maintenance",levels=1} } },
+    { type="skills", skills={ {id="Axe",levels=1},{id="Maintenance",levels=1} } },
+
+    -- stronger single skill
+    { type="skill", skill="Maintenance", levels=1 },
+    { type="skill", skill="Nimble", levels=2 },
+
+    -- boosts (stable)
+    -- { type="xpBoost", skill="Maintenance", amount=2, durationRounds=2 },
+    -- { type="xpBoost", skill="Axe", amount=2, durationRounds=2 },
+    -- { type="xpBoost", skill="Blunt", amount=2, durationRounds=2 },
+    -- { type="xpBoost", skill="SmallBlade", amount=2, durationRounds=2 },
+
+    -- items: weapons/utility step up
+    { type="item", id="Base.Ratchet", qty=1 },
+    { type="item", id="Base.Machete_Crude", qty=1 },
+    { type="item", id="Base.MeatCleaver_Scrap", qty=1 },
+    { type="item", id="Base.Screwdriver", qty=2 },
+    { type="item", id="Base.IceHockeyStick_BarbedWire", qty=1 },
+    { type="item", id="Base.Torch", qty=1 },
+
+    { type="item", id="Base.ShinKneeGuard_R_Metal", qty=2 },
+    { type="item", id="Base.Vambrace_FullMetal_Left", qty=2 },
+    { type="item", id="Base.Hat_MetalHelmet", qty=1 },
+    { type="item", id="Base.Thigh_ArticMetal_L", qty=2 },
+    -- { type="item", id="Base.Shoulderpad_Articulated_L_Metal", qty=2 },
+
+    -- heal (uncommon: low chance)
+    -- drugs (mid)
+    { type="drug", id="Drogatyno.Droga1", qty=2 },
+    { type="drug", id="Drogatyno.Droga2", qty=1 },
+
+    -- build specific: theme packs
+    { type="skills", skills={ {id="SmallBlade",levels=1},{id="Nimble",levels=1} }, buildIds={ "roguelityno:bimbolama" } },
+    
+    { type="skills", skills={ {id="Axe",levels=1},{id="Woodwork",levels=1} }, buildIds={ "roguelityno:uomo_ascia" } },
+    
+    { type="skills", skills={ {id="Blacksmith",levels=1},{id="Masonry",levels=1} }, buildIds={ "roguelityno:uomo_sasso" } },
+    
+    { type="skills", skills={ {id="Aiming",levels=1},{id="Reloading",levels=1} }, buildIds={ "roguelityno:americano" } },
+    
+    { type="item", id="Base.Whistle", qty=1, buildIds={ "roguelityno:mr_rumble" } },
+    
+    { type="item", id="Base.Gin", qty=1, buildIds={ "roguelityno:igor" } },
+    
+    { type="currency", amount=28, buildIds={ "roguelityno:la_leggenda" } },
+},
+
+rare = {
+    -- currency
+    { type="currency", amount=40 },
+    { type="currency", amount=45 },
+
+    -- skills (rare: meaningful)
+    { type="skill", skill="Axe", levels=2 , buildIds={ "roguelityno:uomo_ascia" }},
+    { type="skill", skill="Blunt", levels=2 , buildIds={ "roguelityno:igor",  "roguelityno:uomo_sasso"}},
+    { type="skill", skill="SmallBlunt", levels=2 , buildIds={  "roguelityno:igor",  "roguelityno:uomo_sasso"}},
+    { type="skill", skill="SmallBlade", levels=2 , buildIds={ "roguelityno:bimbolama" }},
+    { type="skill", skill="LongBlade", levels=2 , anyClass = true},
+    { type="skill", skill="Sprinting", levels=2 },
+    { type="skill", skill="Nimble", levels=2 },
+
+    -- combo “role”
+    { type="skills", skills={ {id="Sprinting",levels=2},{id="Nimble",levels=1} } },
+    { type="skills", skills={ {id="Maintenance",levels=2} } },
+
+    -- boosts (rare stable)
+    -- { type="xpBoost", skill="Aiming", amount=2, durationRounds=2 },
+    -- { type="xpBoost", skill="Axe", amount=1.5, durationRounds=2 },
+    -- { type="xpBoost", skill="Blunt", amount=1.5, durationRounds=2 },
+    -- { type="xpBoost", skill="Blunt", amount=1.5, durationRounds=2 },
+    -- { type="xpBoost", skill="Blunt", amount=1.5, durationRounds=2 },
+    -- { type="xpBoost", skill="Maintenance", amount=1.5, durationRounds=2 },
+
+    -- items (rare weapons/ammos)
+    { type="item", id="Base.Hatchet_Bone", qty=1 },
+
+    { type="item", id="Base.BaseballBat_Metal_Sawblade", qty=1 },
+    
+    { type="item", id="Base.HandguardDagger", qty=2 },
+
+    { type="item", id="Base.CanoePadelX2", qty=1 },
+    
+    { type="item", id="Base.Sword", qty=1 },
+    
+    { type="item", id="Base.Revolver", qty=1 },
+    
+    { type="item", id="Base.Bullets9mmBox", qty=1 },
+    
+    { type="item", id="Base.Bullets45Box", qty=1 },
+    { type="item", id="Base.9mmClip", qty=1 },
+    { type="item", id="Base.45Clip", qty=1 },
+    { type="item", id="Rogue.ModKit_Special", qty=1 },
+    
+    { type="item", id="Base.Cuirass_Metal", qty=1 },
+
+    -- drugs (rare)
+        -- drugs (mid)
+    { type="drug", id="Drogatyno.Droga2", qty=2 },
+    { type="drug", id="Drogatyno.Droga3", qty=1 },
+
+    -- traits (rare spicy but not game-breaking)
+    { type="trait", id="Brave" },
+
+    -- build specific rare spice
+    { type="skills", skills={ {id="Aiming",levels=2},{id="Reloading",levels=2} }, buildIds={ "roguelityno:americano" } },
+    
+    { type="skills", skills={ {id="SmallBlade",levels=2},{id="Nimble",levels=2} }, buildIds={ "roguelityno:bimbolama" } },
+    
+    { type="skills", skills={ {id="Axe",levels=2},{id="Strength",levels=1} }, buildIds={ "roguelityno:uomo_ascia", "roguelityno:la_leggenda" } },
+    
+    { type="skills", skills={ {id="Blacksmith",levels=2},{id="MetalWelding",levels=1} }, buildIds={ "roguelityno:uomo_sasso", "roguelityno:igor" } },
+    
+    { type="item", id="Base.AlarmClock", qty=2, buildIds={ "roguelityno:mr_rumble" } },
+    
+    { type="item", id="Base.Whiskey", qty=2, buildIds={ "roguelityno:igor" } },
+    
+    { type="currency", amount=40, buildIds={ "roguelityno:la_leggenda" } },
+},
+
+epic = {
+    -- currency
+    { type="currency", amount=60 },
+    { type="currency", amount=65 },
+
+    -- big skill combos
+    { type="skills", skills={ {id="Aiming",levels=3},{id="Reloading",levels=2} } },
+    { type="skills", skills={ {id="Axe",levels=3},{id="Maintenance",levels=2} } },
+    { type="skills", skills={ {id="Blunt",levels=3},{id="Maintenance",levels=2} } },
+    { type="skills", skills={ {id="Nimble",levels=3},{id="Sprinting",levels=2} } },
+    { type="skills", skills={ {id="SmallBlade",levels=3},{id="Nimble",levels=2} } },
+
+    -- CATCH-UP BOOSTS: 1 ROUND ONLY
+    { type="xpBoost", skill="Axe", amount=4.0, durationRounds=1 },
+    { type="xpBoost", skill="Blunt", amount=4.0, durationRounds=1 },
+    { type="xpBoost", skill="SmallBlunt", amount=4.0, durationRounds=1 },
+    { type="xpBoost", skill="SmallBlade", amount=4.0, durationRounds=1 },
+    { type="xpBoost", skill="LongBlade", amount=4.0, durationRounds=1 },
+    { type="xpBoost", skill="Aiming", amount=4.0, durationRounds=1 },
+    -- { type="xpBoost", skill="Reloading", amount=4.0, durationRounds=1 },
+    { type="xpBoost", skill="Maintenance", amount=4.0, durationRounds=1 },
+
+    -- -- stable epic boosts (alternativa)
+    -- { type="xpBoost", skill="Maintenance", amount=3, durationRounds=3 },
+    -- { type="xpBoost", skill="Aiming", amount=3, durationRounds=3 },
+
+    -- items (epic)
+    { type="item", id="Base.BaseballBat_Metal_Bolts", qty=1 },
+    { type="item", id="Base.Revolver_Long", qty=1 },
+    { type="item", id="Base.JawboneBovide_Axe", qty=1 },
+    { type="item", id="Base.LongMace_Stone", qty=1 },
+    { type="item", id="Base.Morningstar_Scrap_Short", qty=1 },
+    { type="item", id="Base.Sword", qty=1 },
+    { type="item", id="Base.FightingKnife", qty=2 },
+    { type="item", id="Base.ShotgunShellsBox", qty=3 },
+    { type="item", id="Base.556Box", qty=3 },
+    { type="heal", id="Rogue.FullRestoreSerum", qty=1 },
+    { type="item", id="Rogue.ModKit_Special", qty=1 },
+
+    -- drugs (epic)
+    { type="drug", id="Drogatyno.Droga3", qty=2 },
+    { type="drug", id="Drogatyno.Droga4", qty=1 },
+
+    -- traits (epic)
+    { type="trait", id="EagleEyed" },
+
+
+    -- -- build specific epic signature
+    -- { type="xpBoost", skill="SmallBlade", amount=4.0, durationRounds=1, buildIds={ "roguelityno:bimbolama" } },
+    
+    -- { type="xpBoost", skill="Axe", amount=4.0, durationRounds=1, buildIds={ "roguelityno:uomo_ascia" } },
+    
+    -- { type="xpBoost", skill="Aiming", amount=4.0, durationRounds=1, buildIds={ "roguelityno:americano" } },
+    
+    -- { type="xpBoost", skill="SmallBlunt", amount=4.0, durationRounds=1, buildIds={ "roguelityno:igor" } },
+    
+    -- { type="xpBoost", skill="Blunt", amount=4.0, durationRounds=1, buildIds={ "roguelityno:uomo_sasso" } },
+    
+    { type="item", id="Base.Katana", qty=1, buildIds={ "roguelityno:mr_rumble" } },
+    
+    { type="currency", amount=55, buildIds={ "roguelityno:la_leggenda" } },
+},
+
+legendary = {
+    -- currency
+    { type="currency", amount=100 },
+
+    -- stat spikes (cap a 10 server-side)
+    { type="skill", skill="Strength", levels=3 },
+    { type="skill", skill="Fitness", levels=2 },
+
+    -- huge combos
+    { type="skills", skills={ {id="Axe",levels=3},{id="Maintenance",levels=3} } },
+    { type="skills", skills={ {id="Blunt",levels=3},{id="Maintenance",levels=3} } },
+    { type="skills", skills={ {id="LongBlade",levels=3},{id="Maintenance",levels=3} } },
+    { type="skills", skills={ {id="SmallBlunt",levels=3},{id="Maintenance",levels=3} } },
+    { type="skills", skills={ {id="SmallBlade",levels=3},{id="Maintenance",levels=3} } },
+    { type="skills", skills={ {id="Aiming",levels=3},{id="Reloading",levels=3} } },
+
+    -- CATCH-UP BOOSTS: 1 ROUND ONLY (più forti)
+    { type="xpBoost", skill="Axe", amount=6.0, durationRounds=1 },
+    { type="xpBoost", skill="SmallBlade", amount=6.0, durationRounds=1 },
+    { type="xpBoost", skill="LongBlade", amount=6.0, durationRounds=1 },
+    { type="xpBoost", skill="Blunt", amount=6.0, durationRounds=1 },
+    { type="xpBoost", skill="SmallBlunt", amount=6.0, durationRounds=1 },
+    { type="xpBoost", skill="Aiming", amount=6.0, durationRounds=1 },
+    { type="xpBoost", skill="Maintenance", amount=6.0, durationRounds=1 },
+
+    -- -- “carry tecnico” (non catch-up): opzionale
+    -- { type="xpBoost", skill="Aiming", amount=2.0, durationRounds=4 },
+    -- { type="xpBoost", skill="Maintenance", amount=2.0, durationRounds=4 },
+
+    -- items top
+    { type="item", id="Base.AssaultRifle", qty=1 },
+    { type="item", id="Base.AssaultRifle2", qty=1 },
+    { type="item", id="Base.556Carton", qty=1 },
+    { type="heal", id="Rogue.FullRestoreSerum", qty=3 },
+    
+    -- drugs top
+    { type="drug", id="Drogatyno.Droga5", qty=1 },
+    
+    -- traits leggendari
+    { type="trait", id="Desensitized" },
+    { type="trait", id="Marksman" },
+    
+    -- build specific legendary identity
+    { type="skills", skills={ {id="SmallBlade",levels=3},{id="Nimble",levels=3} }, buildIds={ "roguelityno:bimbolama" } },
+    
+    { type="skills", skills={ {id="Axe",levels=3},{id="Strength",levels=2} }, buildIds={ "roguelityno:uomo_ascia" } },
+    { type="item", id="Base.WoodAxe", qty=1, buildIds={ "roguelityno:uomo_ascia" }},
+    
+    { type="skills", skills={ {id="Blunt",levels=3},{id="SmallBlunt",levels=3} }, buildIds={ "roguelityno:uomo_sasso" } },
+    
+    { type="skills", skills={ {id="Aiming",levels=3},{id="Reloading",levels=3} }, buildIds={ "roguelityno:americano" } },
+    
+    { type="skills", skills={ {id="Mechanics",levels=3},{id="MetalWelding",levels=3} }, buildIds={ "roguelityno:igor" } },
+    
+    -- { type="trait", id="Organized", buildIds={ "roguelityno:mr_rumble" } },
+    
+    { type="currency", amount=150, buildIds={ "roguelityno:la_leggenda" } },
+}
 }
 
 Config.TRAIT_ICON_MAP = Config.TRAIT_ICON_MAP or {}
 Config.SKILL_ICON_MAP = Config.SKILL_ICON_MAP or {}
+Config.SKILL_ICON_MAP.Fitness = "media/textures/ui/skills/fitness.png"
+Config.SKILL_ICON_MAP.Strength = "media/textures/ui/skills/strength.png"
+Config.SKILL_ICON_MAP.Spear = "media/textures/ui/skills/spear.png"
 
+
+--START 0 NON SPAWNA ALL INIIZO,START -1 INFINITO
 Config.SHOP_ITEMS = {
+
     medical = {
-        { id = "Rogue.FullRestoreSerum", price = 30.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 3 },
-        { id = "Base.AlcoholWipes", price = 3.0, qty = 1, startStockPerPlayer = 1, restockPerPlayer = 0.6, restockEveryNrounds = 2 },
-        { id = "Base.Antibiotics", price = 10.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.PillsAntiDep", price = 8.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-        { id = "Base.Bandage", price = 2.0, qty = 1, startStockPerPlayer = 1.2, restockPerPlayer = 0.8, restockEveryNrounds = 2 },
-        { id = "Base.AlcoholBandage", price = 4.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.6, restockEveryNrounds = 2 },
+        { id = "Rogue.FullRestoreSerum", price = 50.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 3, maxStock = 5 },
+        { id = "Base.PillsBeta", price = 10.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.Gin", price = 30.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
+        { id = "Base.PillsVitamins", price = 20.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
+        { id = "Base.AlcoholWipes", price = 5.0, qty = 1, startStockPerPlayer = 1, restockPerPlayer = 0.6, restockEveryNrounds = 2 },
+        { id = "Base.PillsAntiDep", price = 10.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.Pills", price = 10.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.Bandage", price = 10.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.8, restockEveryNrounds = 2 },
+        { id = "Base.BandageBox", price = 50.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
         { id = "Base.Bandaid", price = 2.0, qty = 1, startStockPerPlayer = 1.0, restockPerPlayer = 0.8, restockEveryNrounds = 1 },
-        { id = "Base.PillsBeta", price = 7.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-        { id = "Base.BlackSage", price = 6.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        --nuovo shop equip
-        { id = "Base.Disinfectant", price = 6.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.AdhesiveBandageBox", price = 8.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.AntibioticsBox", price = 14.0, qty = 1, startStockPerPlayer = 0.2, restockPerPlayer = 0.2, restockEveryNrounds = 4 },
-        { id = "Base.BandageBox", price = 6.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.ColdpackBox", price = 8.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.AdhesiveBandageBox", price = 24.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
     },
+
     weapons = {
-        { id = "Base.HuntingKnife", price = 10.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.KnifeButterfly", price = 12.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-        { id = "Base.HuntingKnifeForged", price = 16.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.HandguardDagger", price = 14.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-        { id = "Base.ShortBat", price = 10.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.6, restockEveryNrounds = 2 },
-        { id = "Base.Mace_Stone", price = 14.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-        { id = "Base.LongMace_Stone", price = 18.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.SwitchKnife", price = 12.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-        { id = "Base.CrudeShortSword", price = 20.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 4 },
-        { id = "Base.Sword", price = 28.0, qty = 1, startStockPerPlayer = 0.2, restockPerPlayer = 0.2, restockEveryNrounds = 4 },
-        { id = "Base.Crowbar", price = 14.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.ClubHammer", price = 12.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.Hammer", price = 8.0, qty = 1, startStockPerPlayer = 1.0, restockPerPlayer = 0.8, restockEveryNrounds = 1 },
-        { id = "Base.Axe", price = 22.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.Axe_Old", price = 18.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.FireplacePoker", price = 8.0, qty = 1, startStockPerPlayer = 0.9, restockPerPlayer = 0.7, restockEveryNrounds = 1 },
-        { id = "Base.BaseballBat", price = 14.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.6, restockEveryNrounds = 2 },
-        { id = "Base.BaseballBat_Nails", price = 18.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.Golfclub", price = 12.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-        { id = "Base.LaCrosseStick", price = 14.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-    },
+        { id = "Base.SwitchKnife", subcat = "blades", price = 20.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.KnifeButterfly", subcat = "blades", price = 20.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.KnifeSushi", subcat = "blades", price = 60.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.KnifeSushi", subcat = "blades", price = 60.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.HuntingKnife", subcat = "blades", price = 100.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
+        { id = "Base.HandguardDagger", subcat = "blades", price = 100.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.Multitool", subcat = "blades", price = 100.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+
+        { id = "Base.Machete_Crude", subcat = "blades", price = 30.0, qty = 1, startStockPerPlayer = 0.2, restockPerPlayer = 0.2, restockEveryNrounds = 4 },
+        { id = "Base.ShortSword_Scrap", subcat = "blades", price = 60.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 4 },
+        { id = "Base.Machete", subcat = "blades", price = 250.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 4 },
+        
+        { id = "Base.ShortBat", subcat = "blunt", price = 30.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.6, restockEveryNrounds = 2 },
+        { id = "Base.ClubHammer", subcat = "blunt", price = 50.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
+        { id = "Base.FireplacePoker", subcat = "blunt", price = 100.0, qty = 1, startStockPerPlayer = 0.9, restockPerPlayer = 0.7, restockEveryNrounds = 1 },
+        { id = "Base.Hammer", subcat = "blunt", price = 250, qty = 1, startStockPerPlayer = 1.0, restockPerPlayer = 0.8, restockEveryNrounds = 1 },        
+        { id = "Base.Mace_Stone", subcat = "blunt", price = 250.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+
+        { id = "Base.LaCrosseStick", subcat = "blunt", price = 30.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.Golfclub", subcat = "blunt", price = 30.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.CanoePadelX2", subcat = "blunt", price = 60.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.BaseballBat_Nails", subcat = "blunt", price = 100.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.BoltCutters", subcat = "blunt", price = 250.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+
+
+        { id = "Base.BaseballBat_RailSpike", subcat = "axes", price = 50.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.EntrenchingTool", subcat = "axes", price = 50.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.Axe_Sawblade_Hatchet", subcat = "axes", price = 100.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.ScrapWeapon_Brake", subcat = "axes", price = 100.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.Cudgel_Brake", subcat = "axes", price = 100.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.IceAxe", subcat = "axes", price = 150.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.Axe_Old", subcat = "axes", price = 250.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+
+            },
+
     food = {
-        { id = "Base.WaterBottle", price = 4.0, qty = 1, startStockPerPlayer = 1.2, restockPerPlayer = 0.8, restockEveryNrounds = 1 },
-        { id = "Base.PopBottle", price = 6.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.6, restockEveryNrounds = 2 },
-        { id = "Base.Chips", price = 4.0, qty = 1, startStockPerPlayer = 0.9, restockPerPlayer = 0.6, restockEveryNrounds = 1 },
-        { id = "Base.TortillaChips", price = 3.0, qty = 1, startStockPerPlayer = 0.9, restockPerPlayer = 0.6, restockEveryNrounds = 2 },
-        { id = "Base.BeefJerky", price = 6.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.CannedBolognese", price = 7.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 3 },
-        { id = "Base.Dogfood", price = 3.0, qty = 1, startStockPerPlayer = 1, restockPerPlayer = 1, restockEveryNrounds = 1 },
-        { id = "Base.CatTreats", price = 4.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.Battery", price = 2.0, qty = 1, startStockPerPlayer = 2.0, restockPerPlayer = 1.5, restockEveryNrounds = 1 },
-        { id = "Base.BatteryBox", price = 12.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-        { id = "Base.Flashlight", price = 10.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.FlashLight_AngleHead_Army", price = 30.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.Lantern", price = 30.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.Propane_Refill", price = 10.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.2, restockEveryNrounds = 4 },
-        { id = "Base.Bag_Schoolbag_Patches", price = 30.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.Bag_HikingBag_Travel", price = 60.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.Bag_HydrationBackpack_Camo", price = 80.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.Bag_ALICEpack", price = 120.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },        
-        { id = "Base.Plank", price = 3.0, qty = 2, startStockPerPlayer = 3, restockPerPlayer = 2, restockEveryNrounds = 1 },
-        { id = "Base.NailsBox", price = 8.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.6, restockEveryNrounds = 2 },
-        { id = "Base.Saw", price = 20.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.4, restockEveryNrounds = 3 },
-        { id = "Base.SheetMetal", price = 6.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.Needle", price = 30.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.Thread", price = 5.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
+        { id = "Base.WaterBottle", price = 10.0, qty = 1, startStockPerPlayer = 1.2, restockPerPlayer = 0.8, restockEveryNrounds = 1 },
+        { id = "Base.PopBottle", price = 10.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.6, restockEveryNrounds = 2 , maxStock = 10 },
+        { id = "Base.Crisps2", price = 10.0, qty = 1, startStockPerPlayer = 0.9, restockPerPlayer = 0.2, restockEveryNrounds = 1 },
+        { id = "Base.TortillaChips", price = 10.0, qty = 1, startStockPerPlayer = 0.9, restockPerPlayer = 0.2, restockEveryNrounds = 2 },
+        { id = "Base.BeefJerky", price = 12.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.2, restockEveryNrounds = 2 },
+        { id = "Base.DentedCan", price = 8.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 3, maxStock = 10 },
+        { id = "Base.MysteryCan", price = 10.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 3 , maxStock = 10 },
+        { id = "Base.CannedBolognese", price = 12.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 3 , maxStock = 10 },
+        { id = "Base.Dogfood", price = 8.0, qty = 1, startStockPerPlayer = 1, restockPerPlayer = 1, restockEveryNrounds = 1 , maxStock = 10 },
+        { id = "Base.CatTreats", price = 8.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
+        { id = "Base.P38", price = 10.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
     },
+
+
+    supplies = {
+        { id = "Rogue.ModKit_Improvised", subcat = "misc", price = 20.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.5, restockEveryNrounds = 1 , maxStock = 10},
+        { id = "Base.LighterDisposable", subcat = "misc", price = 5.0, qty = 0, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.Paperback", subcat = "misc", price = 20.0, qty = 0, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 , maxStock = 5 },
+        { id = "Base.TobaccoLoose", subcat = "misc", price = 20.0, qty = 0, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 , maxStock = 5 },
+        { id = "Base.CigaretteRollingPapers", subcat = "misc", price = 5.0, qty = 0, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 , maxStock = 5},
+        { id = "Base.Battery", subcat = "misc", price = 10.0, qty = 1, startStockPerPlayer = 2.0, restockPerPlayer = 1.5, restockEveryNrounds = 1 },
+        { id = "Base.DuctTape", subcat = "misc", price = 10.0, qty = 1, startStockPerPlayer = 0.1, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.Whetstone", subcat = "misc", price = 40.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.BatteryBox", subcat = "misc", price = 60.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.DuctTapeBox", subcat = "misc", price = 100.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.Hat_ArmyHelmet", subcat = "misc", price = 14.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.PetrolCan", subcat = "misc", price = 40.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.Bag_ALICE_BeltSus_Camo", subcat = "container", price = 40.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 2 },
+        { id = "Base.Flashlight", subcat = "lighting", price = 50.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
+        { id = "Base.FlashLight_AngleHead_Army", subcat = "lighting", price = 100.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.Lantern_Propane", subcat = "lighting", price = 100.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.Propane_Refill", subcat = "lighting", price = 20.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.2, restockEveryNrounds = 4 },
+        { id = "Base.Bag_Schoolbag_Patches", subcat = "container", price = 30.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.Bag_HydrationBackpack_Camo", subcat = "container", price = 60.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.Bag_ALICEpack", subcat = "container", price = 80.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.Plank", subcat = "building", price = 10.0, qty = 2, startStockPerPlayer = -1, restockPerPlayer = 2, restockEveryNrounds = 1 },
+        { id = "Base.NailsBox", subcat = "building", price = 20.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.6, restockEveryNrounds = 2 },
+        { id = "Base.Saw", subcat = "building", price = 20.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.4, restockEveryNrounds = 3 },
+        { id = "Base.SheetMetal", subcat = "building", price = 15.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
+        { id = "Base.Needle", subcat = "building", price = 30.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
+        { id = "Base.Thread", subcat = "building", price = 5.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
+    },
+
     drugs = {
-        { id = "Drogatyno.Droga1", price = 10.0, qty = 1, startStockPerPlayer = 5 , restockPerPlayer = 0.4, restockEveryNrounds = 1 },
-        { id = "Drogatyno.Droga2", price = 20.0, qty = 1, startStockPerPlayer = 4 , restockPerPlayer = 0.4, restockEveryNrounds = 1 },
-        { id = "Drogatyno.Droga3", price = 40.0, qty = 1, startStockPerPlayer = 3 , restockPerPlayer = 0.3, restockEveryNrounds = 2 },
-        { id = "Drogatyno.Droga4", price = 100.0, qty = 1, startStockPerPlayer = 2 , restockPerPlayer = 0.3, restockEveryNrounds = 2 },
-        { id = "Drogatyno.Droga5", price = 250.0, qty = 1, startStockPerPlayer = 1 , restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.PillsVitamins", price = 6.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.PillsBeta", price = 7.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-        { id = "Base.PillsAntiDep", price = 8.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-        { id = "Base.Pills", price = 6.0, qty = 1, startStockPerPlayer = 0.9, restockPerPlayer = 0.6, restockEveryNrounds = 1 },
-        { id = "Base.AlcoholWipes", price = 3.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.6, restockEveryNrounds = 1 },
+        { id = "Drogatyno.Droga1", price = 20.0, qty = 1, startStockPerPlayer = -1 , restockPerPlayer = 0.4, restockEveryNrounds = 1 },
+        { id = "Drogatyno.Droga2", price = 50.0, qty = 1, startStockPerPlayer = 1 , restockPerPlayer = 0.4, restockEveryNrounds = 1 },
+        { id = "Drogatyno.Droga3", price = 125.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.3, restockEveryNrounds = 2 },
+        { id = "Drogatyno.Droga4", price = 250.0, qty = 1, startStockPerPlayer = 0.5 , restockPerPlayer = 0.3, restockEveryNrounds = 2 },
+        { id = "Drogatyno.Droga5", price = 350.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
     },
+
     perks = {
-        { id = "Base.BookFarming1", price = 10.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.BookFarming2", price = 12.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 3 },
-        { id = "Base.BookFarming3", price = 14.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.BookFarming4", price = 16.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 4 },
-        { id = "Base.BookFarming5", price = 18.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 4 },
-        { id = "Base.BookAiming1", price = 12.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-        { id = "Base.BookAiming2", price = 14.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 3 },
-        { id = "Base.BookAiming3", price = 16.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.BookAiming4", price = 18.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 4 },
-        { id = "Base.BookAiming5", price = 20.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 4 },
-        { id = "Base.BookHusbandry1", price = 10.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-        { id = "Base.BookHusbandry2", price = 12.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 3 },
-        { id = "Base.BookHusbandry3", price = 14.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.BookHusbandry4", price = 16.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 4 },
-        { id = "Base.BookHusbandry5", price = 18.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 4 },
     },
+
     firearms = {
-        { id = "Base.HolsterSimple_Black", price = 20.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 2 },
-        { id = "Base.HolsterShoulder", price = 30.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 2 },
-        { id = "Base.Bag_ALICE_BeltSus_Camo", price = 40.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 2 },
-        { id = "Base.Pistol2", price = 40.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 2 },
-        { id = "Base.Pistol3", price = 70.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.2, restockEveryNrounds = 3 },
-        { id = "Base.Revolver", price = 35.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 2 },
-        { id = "Base.Pistol", price = 60.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.3, restockEveryNrounds = 2 },
-        { id = "Base.Revolver_Long", price = 45.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 3 },
-        { id = "Base.AssaultRifle", price = 70.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.15, restockEveryNrounds = 4 },
-        { id = "Base.AssaultRifle2", price = 150.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.15, restockEveryNrounds = 4 },
-        { id = "Base.HuntingRifle", price = 40.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 2 },
-        { id = "Base.DoubleBarrelShotgunSawnoff", price = 80.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 3 },
-        { id = "Base.Bullets9mmBox", price = 10.0, qty = 1, startStockPerPlayer = 0.9, restockPerPlayer = 0.7, restockEveryNrounds = 1 },
-        { id = "Base.Bullets45Box", price = 12.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.6, restockEveryNrounds = 1 },
-        { id = "Base.223Box", price = 14.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.4, restockEveryNrounds = 1 },
-        { id = "Base.308Box", price = 16.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.3, restockEveryNrounds = 1 },
-        { id = "Base.ShotgunShellsBox", price = 12.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.Bullets44", price = 10.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
-        { id = "Base.9mmClip", price = 8.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.6, restockEveryNrounds = 3 },
-        { id = "Base.45Clip", price = 9.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.44Clip", price = 9.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
-        { id = "Base.556Clip", price = 12.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 3 },
-        { id = "Base.M14Clip", price = 14.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.Laser", price = 18.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.RedDot", price = 18.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
-        { id = "Base.GunLight", price = 16.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.HolsterSimple_Black", subcat = "attachments", price = 15.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 2 },
+        { id = "Base.HolsterShoulder", subcat = "attachments", price = 40.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 2 },
+        { id = "Base.Pistol2", subcat = "guns", price = 40.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 2 },
+        { id = "Base.Revolver", subcat = "guns", price = 50.0, qty = 1, startStockPerPlayer = 0.4, restockPerPlayer = 0.3, restockEveryNrounds = 2 },
+        { id = "Base.Revolver_Long", subcat = "guns", price = 70.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 3, maxStock = 2},
+        { id = "Base.Pistol3", subcat = "guns", price = 70.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.2, restockEveryNrounds = 3 },
+        { id = "Base.Pistol", subcat = "guns", price = 100.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.3, restockEveryNrounds = 2 },
+        { id = "Base.AssaultRifle", subcat = "guns", price = 100.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.15, restockEveryNrounds = 4, maxStock = 1 },
+        { id = "Base.AssaultRifle2", subcat = "guns", price = 250.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.15, restockEveryNrounds = 4 , maxStock = 2},
+        { id = "Base.HuntingRifle", subcat = "guns", price = 60.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 2 , maxStock = 3},
+        { id = "Base.Shotgun", subcat = "guns", price = 80.0, qty = 1, startStockPerPlayer = 0.3, restockPerPlayer = 0.2, restockEveryNrounds = 3 , maxStock = 2},
+        { id = "Base.Bullets9mmBox", subcat = "ammo", price = 20.0, qty = 1, startStockPerPlayer = 0.9, restockPerPlayer = 0.7, restockEveryNrounds = 1 },
+        { id = "Base.Bullets45Box", subcat = "ammo", price = 20.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.3, restockEveryNrounds = 1, maxStock = 5 },
+        { id = "Base.Bullets38Box", subcat = "ammo", price = 20.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 1, maxStock = 5 },
+        { id = "Base.308Box", subcat = "ammo", price = 20.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.3, restockEveryNrounds = 1, maxStock = 5 },
+        { id = "Base.Bullets44Box", subcat = "ammo", price = 20.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.4, restockEveryNrounds = 2 },
+        { id = "Base.223Box", subcat = "ammo", price = 30.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.4, restockEveryNrounds = 1, maxStock = 5 },
+        { id = "Base.ShotgunShellsBox", subcat = "ammo", price = 30.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.5, restockEveryNrounds = 2, maxStock = 5 },
+        { id = "Base.556Box", subcat = "ammo", price = 50.0, qty = 1, startStockPerPlayer = 0.9, restockPerPlayer = 0.7, restockEveryNrounds = 1, maxStock = 5 },
+        { id = "Base.45Clip", subcat = "ammo", price = 10.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
+        { id = "Base.9mmClip", subcat = "ammo", price = 15.0, qty = 1, startStockPerPlayer = 0.8, restockPerPlayer = 0.6, restockEveryNrounds = 3 },
+        { id = "Base.44Clip", subcat = "ammo", price = 15.0, qty = 1, startStockPerPlayer = 0.7, restockPerPlayer = 0.5, restockEveryNrounds = 2 },
+        { id = "Base.M14Clip", subcat = "ammo", price = 20.0, qty = 1, startStockPerPlayer = 0.5, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.556Clip", subcat = "ammo", price = 30.0, qty = 1, startStockPerPlayer = 0.6, restockPerPlayer = 0.4, restockEveryNrounds = 3 },
+        { id = "Base.Laser", subcat = "attachments", price = 20.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.RedDot", subcat = "attachments", price = 40.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
+        { id = "Base.GunLight", subcat = "attachments", price = 50.0, qty = 1, startStockPerPlayer = 0, restockPerPlayer = 0.3, restockEveryNrounds = 3 },
     },
 }
 
 Config.STARTING_CURRENCY = 70
+Config.STARTING_CURRENCY_BY_DIFFICULTY = {
+    [1] = 70,
+    [2] = 70,
+    [3] = 85,
+    [4] = 100,
+    [5] = 120,
+}
+
 Config.BUILD_REBUY_COST = 30
 
 Config.GLOBAL_XP_BOOST_MULT = 0
@@ -494,12 +913,12 @@ Config.GLOBAL_XP_BOOSTS = {}
 Config.BUILD_SHOP = {
     -- { id = "roguelityno:test_build", price = 0 },
     { id = "roguelityno:bimbolama", price = 50 },
-    { id = "roguelityno:uomo_ascia", price = 50 },
-    { id = "roguelityno:uomo_sasso", price = 50 },
-    { id = "roguelityno:americano", price = 50 },
-    { id = "roguelityno:la_leggenda", price = 50 },
+    { id = "roguelityno:uomo_ascia", price = 70 },
+    { id = "roguelityno:uomo_sasso", price = 40 },
+    { id = "roguelityno:americano", price = 40 },
+    { id = "roguelityno:la_leggenda", price = 30 },
     { id = "roguelityno:igor", price = 50 },
-    { id = "roguelityno:mr_rumble", price = 50 },
+    { id = "roguelityno:mr_rumble", price = 30 },
 }
 
 -- Sounds that should follow the player instead of being fixed at a point.
@@ -530,7 +949,7 @@ Config.BUILDS = {
         desc = "Test semplice: Forza 8, Fitness 6, Axe 3, Maintenance 2.",
         icon = "profession_unemployed",
         iconItem = "Base.SheetPaper2",
-        skills = { Axe = 3, Maintenance = 2 },
+        skills = { Axe = 3 },
         xpBoosts = {},
         startingStats = { Strength = 8, Fitness = 6 },
         traits = {
@@ -545,23 +964,24 @@ Config.BUILDS = {
     {
         id = "roguelityno:bimbolama",
         name = "BIMBOLAMA",
-        desc = "Assassino mobile: velocita' alta e critico con lame corte. Glass cannon, non perdona ma letale se giocato bene.",
+        desc = "Assassino mobile: velocita' alta e critico con lame corte. Glass cannon, non perdona ma letale se giocato bene.\nABILITA SPECIALE: Colpire con le lame accumula un bonus alla probabilita' di critico, decade rapidamente fuori dal combattimento",
         icon = "profession_burglar",
         iconItem = "Base.KnifeButterfly",
-        skills = { SmallBlade = 4, Maintenance = 4, Nimble = 3, Sprinting = 3, LightFoot = 4, Sneak = 4, Doctor = 4},
-        xpBoosts = {},
-        startingStats = { Strength = 5, Fitness = 8 },
+        skills = { SmallBlade = 4, Nimble = 3, Sprinting = 3, Maintenance = 1, LightFoot = 4, Doctor = 4},
+        xpBoosts = {
+            LongBlade = 2,
+            SmallBlade = 2,
+        },
+        startingStats = { Strength = 3, Fitness = 10 },
         traits = {
             -- Positiv
             "base:nightvision",       
             "base:dextrous",          
-            "base:adrenalinejunkie",  
+            "base:adrenalinejunkie",
             "base:graceful",          
             "base:gymnast",           
             "base:fasthealer",        
             -- Negativi
-            "base:sundaydriver",      
-            "base:pronetoillness",    
             "base:pacifist",
             "base:thinskinned",       
         },
@@ -579,17 +999,17 @@ Config.BUILDS = {
     {
         id = "roguelityno:uomo_ascia",
         name = "UOMO ASCIA",
-        desc = "Brutalita' primitiva: camicia a quadri, analfabeta, ascia, spacca!",
+        desc = "Brutalita' primitiva: camicia a quadri, analfabeta, ascia, spacca!\nABILITA SPECIALE: Entra nella mischia con statistiche aumentate, ma la sua etica di ferro gli impedisce di usare droghe.",
         icon = "profession_lumberjack",
         iconItem = "Base.Axe",
-        skills = { Axe = 4, Maintenance = 4, Woodwork = 4 },
-        xpBoosts = {},
+        skills = { Axe = 4, Maintenance = 1, Woodwork = 4 , Nimble = 2},
+        xpBoosts = {
+            Axe = 2,
+        },
         startingStats = { Strength = 8, Fitness = 8 },
         traits = {
             "base:nightvision",
             "base:resilient",
-            "base:fit",
-            "base:stout",
             "base:axeman",
             "base:clumsy",  
             "base:allthumbs", 
@@ -600,38 +1020,40 @@ Config.BUILDS = {
             { id = "Base.AxeStone", qty = 3 },
             { id = "Base.Bandage", qty = 2 },
             { id = "Base.WaterBottle", qty = 1 },
-
         },
     },
 
     {
         id = "roguelityno:uomo_sasso",
         name = "UOMO SASSO",
-        desc = "Artigiano anti-tecnologia: costruisce difese e forgia roba primitiva. Niente armi da fuoco, domina il setup.",
+        desc = "Artigiano anti-tecnologia: controlla l'area con le costruzioni e picchia duro persino con le sue assi.\nABILITA SPECIALE: Costruttore provetto, costruisce barricate e staccionate potenziate a ritmo folle!",
         icon = "profession_constructionworker",
-        iconItem = "Base.StoneChisel",
-        skills = { Axe = 3, Maintenance = 4, SmallBlunt = 4, Blunt = 4, Masonry = 10, Blacksmith = 10, Woodwork = 10, Carving = 10, Fishing = 10, FlintKnapping = 10, Nimble = 2, Sprinting = 3},
-        xpBoosts = {},
-        startingStats = { Strength = 10, Fitness = 8 },
+        iconItem = "Base.LargeStone",
+        skills = {Blunt = 4, Maintenance = 2, Woodwork = 10, Nimble = 1, Sprinting = 2, Carving = 10},
+        xpBoosts = {
+            Blunt = 2,
+            Maintenance = 1,
+        },
+        startingStats = { Strength = 10, Fitness = 7 },
         traits = {
+            "base:graceful",
             "base:nightvision",
             "base:dextrous",
-            "base:resilient",
             "base:handy",
-            "base:whittler",
             "base:crafty",
-            "base:fastlearner",       -- Allievo modello
+            -- "base:fastlearner",       -- Allievo modello
             "base:outdoorsman",       -- uomo natura
             "base:organized",
+            "base:motionsickness"
         },
         loadout = {
-            { id = "Base.Hammer", qty = 1 },
+            { id = "Base.HammerStone", qty = 1 },
             { id = "Base.Saw", qty = 1 },
             { id = "Base.NailsBox", qty = 1 },
-            { id = "Base.Plank", qty = 3 },
+            { id = "Base.Plank", qty = 4 },
             -- arma primitiva base
             { id = "Base.Bag_TarpFramepack_Large", qty = 1 },
-            { id = "Base.JawboneBovide_Club", qty = 1 },
+            { id = "Base.BaseballBat_GardenForkHead", qty = 1 },
             { id = "Base.AlcoholRippedSheets", qty = 2 },
             { id = "Base.WaterBottle", qty = 1 },
         },
@@ -640,17 +1062,21 @@ Config.BUILDS = {
     {
         id = "roguelityno:americano",
         name = "AMERICANO",
-        desc = "Goblin del loot: arraffa tutto, preferisce armi da fuoco. Codardo e claustrofobico: forte se gira, crolla se bloccato.",
+        desc = "Goblin del loot: arraffa tutto, preferisce armi da fuoco. Codardo ed emofobico: forte in gruppo, crolla da solo.\nABILITA SPECIALE: Riceve un proiettile per la sua preziosa 38 alla fine del round per ogni testa spaccata.",
         icon = "profession_veteran",
         iconItem = "Base.Pistol",
-        skills = { Maintenance = 3, SmallBlunt = 2, LongBlade = 3, Nimble = 4, Sprinting = 3, Aiming = 4, Reloading = 6, Doctor = 4},
-        xpBoosts = {},
+        skills = { Aiming = 4, Reloading = 4, LongBlade = 3, Nimble = 3, Sprinting = 2, Doctor = 4},
+        xpBoosts = {
+            LongBlade = 1,
+            Reloading = 2,
+            Aiming = 2,
+        },
         startingStats = { Strength = 6, Fitness = 7 },
         traits = {
             "base:nightvision",
             "base:cowardly",
-            "base:claustrophobic",    --anti camper
-            --"base:hemophobic",
+            -- "base:claustrophobic",    --anti camper
+            "base:hemophobic",
             "base:keenhearing",
             "base:eagleeyed",
             "base:dextrous",
@@ -658,8 +1084,8 @@ Config.BUILDS = {
         },
         loadout = {
             { id = "Base.Bag_RifleCaseClothCamo", qty = 1 },
-            { id = "Base.Revolver", qty = 1 },             
-            { id = "Base.Bullets45Box", qty = 2 },
+            { id = "Base.Revolver_Short", qty = 1 },             
+            { id = "Base.Bullets38Box", qty = 2 },
             { id = "Base.Holster_DuctTape", qty = 1 },
             { id = "Base.WaterBottle", qty = 1 },
             { id = "Base.Bandaid", qty = 1 },
@@ -670,32 +1096,32 @@ Config.BUILDS = {
     {
         id = "roguelityno:la_leggenda",
         name = "LA LEGGENDA",
-        desc = "Allrounder leggendario. Impara in fretta, manutenzione alta, nessun debuff di respawn nella modalita' Rumble.",
+        desc = "Allrounder leggendario e versatile. Inizia con due Droghe2, impara in fretta e ricompense aumentate.\nABILITA SPECIALE: Paga di meno i reroll, ha boost fissi su tutte le armi e accede da subito a delle ricompense piu forti",
         icon = "profession_fireofficer",
         iconItem = "Base.Hat_Beany",
-        skills = { Axe = 3, Maintenance = 4, SmallBlunt = 3, Blunt = 3, LongBlade = 3, Spear = 3, Nimble = 2, Sprinting = 3, Aiming = 2, Reloading = 4, Doctor = 4},
+        skills = {Nimble = 1, Sprinting = 2, Reloading = 4},
         xpBoosts = {
             Axe = 2,
             SmallBlunt = 2,
             Blunt = 2,
             LongBlade = 2,
             SmallBlade = 2,
-            Spear = 2,
             Aiming = 1,
         },
-        startingStats = { Strength = 8, Fitness = 8 },
+        startingStats = { Strength = 7, Fitness = 8 },
         traits = {
             "base:nightvision",      
             "base:fastlearner",      
             "base:brave",       
-            "base:brawler",
+            -- "base:brawler",
             --to be tratto che paga meno le droghe?
         },
     loadout = {
             { id = "Base.Jacket_LeatherBlack", qty = 1 },  
             { id = "Base.Hat_Beany", qty = 1 },
-            { id = "Base.Crowbar", qty = 1 },
+            { id = "Drogatyno.Droga2", qty = 2 },
             { id = "Base.WaterBottle", qty = 1 },
+            { id = "Base.MetalPipe", qty = 1 },
             { id = "Base.Bandage", qty = 2 },
         },
     },
@@ -703,51 +1129,49 @@ Config.BUILDS = {
     {
         id = "roguelityno:igor",
         name = "BOGDANO",
-        desc = "Meccanico dell'est europa. Forza massima, contundenti forti, polmoni bucati. Nel weekend va a sparare col cugino in campagna. Fagli scolare una bella bottiglia piena col tasto destro e torna come nuovo, proprio come la vecchia Betty!",
+        desc = "Forza bruta, contundenti corti, mira ubriaca, polmoni bucati.\nABILITA SPECIALE:Fuma per recuperare un po' di fiato o fagli SCOLARE una bella bottiglia piena col tasto destro e torna come nuovo, proprio come la vecchia Betty!",
         icon = "profession_mechanic",
         iconItem = "Base.BlowTorch",
-        skills = { Maintenance = 4, SmallBlunt = 4, Blunt = 4, SmallBlade = 3, Nimble = 2, Aiming = 2, Reloading = 4, MetalWelding = 6, Mechanics = 10, Electrical = 4},
+        skills = { Maintenance = 2, SmallBlunt = 4, Nimble = 2, Aiming = 2, Reloading = 4, MetalWelding = 6},
         xpBoosts = {
-            MetalWelding = 8,
             SmallBlunt = 2,
             Blunt = 2,
             Maintenance = 2,
         },
-        startingStats = { Strength = 10, Fitness = 5 },
+        startingStats = { Strength = 8, Fitness = 5 },
         traits = {
             "base:nightvision",       -- Cat's Eyes
             "base:smoker",
-            "base:allthumbs", 
+            "base:allthumbs",
             "base:mechanics",
         },
         loadout = {
             { id = "Base.Ratchet", qty = 1 },            
-            { id = "Base.Whiskey", qty = 3 },       
+            { id = "Base.Whiskey", qty = 1 },       
             { id = "Base.Cigar", qty = 2 },        
             { id = "Base.Lighter", qty = 1 },           
             { id = "Base.WaterBottle", qty = 1 },
-            { id = "Base.Wrench", qty = 1 },
             { id = "Base.CanPipe", qty = 1 },
-            { id = "Base.PipeWrench", qty = 1 },
+            { id = "Base.EngineMaul", qty = 1 },
         },
     },
 
     {
         id = "roguelityno:mr_rumble",
         name = "MR RUMBLE",
-        desc = "Il regista. Evidente e allergico, attira orde con strumenti rumorosi.",
+        desc = "Il tuttofare dell'apocalisse, ingengoso e incosciente. Riesce ad arrangiarsi come nessun altro.\nABILITA SPECIALE: Smantella le armi rotte o con poca durabilita', a volte recupera anche oggetti preziosi!",
         icon = "profession_engineer",
         iconItem = "Base.AlarmClock",
-        skills = { SmallBlade = 3, Maintenance = 4, SmallBlunt = 3, Blunt = 3, LongBlade = 3, Spear = 3, Nimble = 2, Sprinting = 3, Aiming = 2, Reloading = 4},
-        xpBoosts = {},
-        startingStats = { Strength = 8, Fitness = 8 },
+        skills = { Maintenance = 4, Nimble = 3, Sprinting = 3, Doctor = 6},
+        xpBoosts = {Maintenance = 4},
+        startingStats = { Strength = 7, Fitness = 7 },
         traits = {
             "base:conspicuous",   
-            "base:pronetoillness",
             "base:organized",     
         },
         loadout = {
-            { id = "Base.AlarmClock", qty = 2 },
+            { id = "Base.DuctTape", qty = 1 },
+            { id = "Base.ZipTie", qty = 3 },
             { id = "Base.BanjoNeck_Broken", qty = 1 }, 
             { id = "Base.Whistle", qty = 1 },
             { id = "Base.Hat_Cowboy_White", qty = 1 },            
@@ -757,6 +1181,7 @@ Config.BUILDS = {
             { id = "Base.Bandage", qty = 2 },
         },
     },
+
 }
 
 Config.PROFESSIONS = Config.BUILDS
@@ -799,6 +1224,12 @@ function Config.applyDifficulty(level)
     Config.baseKillsPerPlayer = preset.baseKillsPerPlayer
     Config.killsPerRoundSlope = preset.killsPerRoundSlope
     Config.waveSoftPerKill = preset.waveSoftPerKill or Config.waveSoftPerKill
+    if preset.spawnIntervalSeconds then
+        Config.SPAWN_INTERVAL_SECONDS = preset.spawnIntervalSeconds
+    end
+    if preset.spawnGroupMult then
+        Config.SPAWN_GROUP_MULT = preset.spawnGroupMult
+    end
     Config.TIER_RUNNER_PCT = {}
     for i = 1, 6 do
         Config.TIER_RUNNER_PCT[i] = preset.runnerPctByTier[i] or 0
@@ -835,7 +1266,20 @@ function Config.getTierRewardMultiplier(tier)
     return Config.XP_TIER_MULT[t] or 1.0
 end
 
+function Config.getStartingCurrency(difficultyId)
+    local idx = tonumber(difficultyId) or tonumber(Config.DIFFICULTY_LEVEL) or 1
+    local map = Config.STARTING_CURRENCY_BY_DIFFICULTY or {}
+    local value = map[idx]
+    if value == nil then
+        return tonumber(Config.STARTING_CURRENCY) or 0
+    end
+    return tonumber(value) or 0
+end
+
 function Config.getRectCenter(rect)
+    if not rect or rect.x1 == nil or rect.x2 == nil or rect.y1 == nil or rect.y2 == nil then
+        return nil
+    end
     local x1 = math.min(rect.x1, rect.x2)
     local x2 = math.max(rect.x1, rect.x2)
     local y1 = math.min(rect.y1, rect.y2)

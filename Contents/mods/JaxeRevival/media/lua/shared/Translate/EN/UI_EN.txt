@@ -1,0 +1,16 @@
+UI_EN = {
+	UI_JaxeRevival_Sleep = "TRY TO SLEEP"
+	UI_JaxeRevival_StayAwake = "STAY AWAKE"
+	UI_JaxeRevival_GiveUp = "GIVE UP"
+	UI_JaxeRevival_GiveUpConfirm = "Your current character can still be rescued!\n\nAre you sure you want to give up and accept death?"
+	UI_JaxeRevival_IsIncapacitated = "You are incapacitated and in need of rescue."
+	UI_JaxeRevival_WillRecover = "If unassisted, you will recover %s."
+	UI_JaxeRevival_WillDie = "If unassisted, you will die %s."
+	UI_JaxeRevival_RemainingExact = "in %s"
+	UI_JaxeRevival_RemainingVeryLong = "in due course, although not anytime soon"
+	UI_JaxeRevival_RemainingLong = "in less than a day"
+	UI_JaxeRevival_RemainingMid = "in less than half a day"
+	UI_JaxeRevival_RemainingShort = "in several hours"
+	UI_JaxeRevival_RemainingVeryShort = "in an hour or two at most"
+	UI_JaxeRevival_RemainingImminent = "any moment now"
+}
